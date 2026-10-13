@@ -10,9 +10,9 @@ from .audit import TianyanAudit
 from .engine import mine_extra
 from .gui import show_menu
 from .mining import block_category, find_connected, should_scan
-from .tree import blocking_leaves, leaf_family
 from .protection import TerritoryBreakGuard
 from .settings import SettingsStore
+from .tree import blocking_leaves, leaf_family
 
 
 class VeinMinerPlugin(Plugin):
