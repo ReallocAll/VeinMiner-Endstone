@@ -121,6 +121,7 @@ def test_enchanted_tool_is_not_processed(monkeypatch):
     assert engine.mine_extra(player, "minecraft:iron_ore", positions, guard, audit, logger) == 0
     assert not events and not drops
 
+
 def test_failed_tool_update_rolls_back_block_and_marks_audit_cancelled(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     events = []
