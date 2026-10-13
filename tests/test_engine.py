@@ -307,10 +307,10 @@ def test_axe_mines_leaves_with_normal_drops_but_bare_hand_does_not(monkeypatch):
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
     assert all(block.type == "minecraft:air" for block in blocks.values())
     assert not any(item == "minecraft:oak_leaves" for _, (item, count) in drops)
-    assert player.inventory.item_in_main_hand.item_meta.damage == 0
+    assert player.inventory.item_in_main_hand.item_meta.damage == 2
 
 
-def test_enchanted_axe_uses_natural_leaf_drops_without_durability(monkeypatch):
+def test_silk_touch_axe_collects_leaves_and_consumes_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     player, blocks, positions, drops = make_world([])
     tool = player.inventory.item_in_main_hand
@@ -320,29 +320,14 @@ def test_enchanted_axe_uses_natural_leaf_drops_without_durability(monkeypatch):
     tool.item_meta.enchants = {
         type("Enchant", (), {"id": "minecraft:silk_touch"})(): 1,
         type("Enchant", (), {"id": "minecraft:fortune"})(): 3,
-        type("Enchant", (), {"id": "minecraft:unbreaking"})(): 3,
     }
-
-    def forbidden_set_meta(meta):
-        raise AssertionError("Leaf chaining must not modify an axe's metadata")
-
-    tool.set_item_meta = forbidden_set_meta
-    calls = []
-
-    def natural_drop(block_id, rng, *, fortune=0):
-        calls.append((block_id, fortune))
-        return (engine.Reward("minecraft:oak_sapling", 1, 0),)
-
-    monkeypatch.setattr(engine, "leaf_rewards", natural_drop)
     for block in blocks.values():
         block.type = "minecraft:oak_leaves"
     guard = SimpleNamespace(can_break=lambda *args: True)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
-    assert calls == [("minecraft:oak_leaves", 0)] * 2
-    assert drops == [("place", ("minecraft:oak_sapling", 1))] * 2
-    assert tool.item_meta.damage == 4
-
+    assert drops == [("place", ("minecraft:oak_leaves", 1))] * 2
+    assert tool.item_meta.damage == 6
 
 def test_shears_chain_intact_leaf_blocks_and_consume_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
@@ -374,7 +359,7 @@ def test_shears_durability_failure_rolls_back_leaf_and_skips_drops(monkeypatch):
     assert drops == []
 
 
-def test_tree_canopy_clear_keeps_axe_durability(monkeypatch):
+def test_tree_canopy_clear_consumes_axe_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     events = []
     player, blocks, positions, drops = make_world(events)
@@ -385,7 +370,7 @@ def test_tree_canopy_clear_keeps_axe_durability(monkeypatch):
     audit = SimpleNamespace(prepare=lambda *args: "row", finish=lambda *args, **kwargs: None)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, audit, logger, canopy=True) == 2
-    assert player.inventory.item_in_main_hand.item_meta.damage == 0
+    assert player.inventory.item_in_main_hand.item_meta.damage == 2
 
 
 def test_mixed_stone_and_deepslate_ores_audit_actual_ids_and_drop_correctly(monkeypatch):
@@ -479,3 +464,35 @@ def test_vertical_plant_targets_still_enforce_territory_permissions(monkeypatch)
     assert checked == positions
     assert blocks[protected].type == "minecraft:reeds"
     assert [stack for _, stack in drops] == [("minecraft:sugar_cane", 1)]
+
+
+def test_enchanted_hoe_crop_mining_uses_fortune_and_durability(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    tool = player.inventory.item_in_main_hand
+    tool.type = FakeType("minecraft:diamond_hoe")
+    tool.item_meta.has_enchants = True
+    tool.item_meta.enchants = {type("Enchantment", (), {"id": "minecraft:fortune"})(): 3}
+    for block in blocks.values():
+        block.type = "minecraft:carrots"
+        block.data.block_states = {"growth": 7}
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:carrots", positions, guard, None, logger) == 2
+    assert all(1 <= count <= 10 and item == "minecraft:carrot" for _, (item, count) in drops)
+    assert tool.item_meta.damage == 2
+
+
+def test_plain_item_harvesting_does_not_require_durability(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    tool = player.inventory.item_in_main_hand
+    tool.type = FakeType("minecraft:stick")
+    tool.type.max_durability = 0
+    for block in blocks.values():
+        block.type = "minecraft:reeds"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:reeds", positions, guard, None, logger) == 2
+    assert drops == [("place", ("minecraft:sugar_cane", 1))] * 2
+    assert tool.item_meta.damage == 0
