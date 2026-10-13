@@ -83,6 +83,32 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     assert not plugin.settings.enabled("uuid-a")
     assert player.tips[-1] == "§7连锁挖掘已关闭"
 
+    # Mobile clients can stop reporting crouch immediately after the break event.
+    # The accepted activation must not be rejected on the scheduled next tick.
+    plugin.settings.set("uuid-a", "enabled", True)
+    plugin.settings.set("uuid-a", "require_sneak", True)
+    player.game_mode = endstone.GameMode.SURVIVAL
+    player.is_valid = True
+    player.is_sneaking = False
+    player.location = SimpleNamespace(block_x=2, block_y=64, block_z=2)
+    player.dimension = SimpleNamespace(
+        name="overworld",
+        get_block_at=lambda *coords: SimpleNamespace(type="minecraft:air"),
+    )
+    player.inventory = SimpleNamespace(item_in_main_hand=SimpleNamespace(type="minecraft:iron_pickaxe"))
+    plugin._guard = SimpleNamespace(refresh=lambda: True)
+    plugin._active_players = {"uuid-a"}
+    harvested = []
+    monkeypatch.setattr(loaded, "mine_extra", lambda *args, **kwargs: harvested.append(args) or 1)
+    plugin.logger = SimpleNamespace(error=lambda msg: (_ for _ in ()).throw(AssertionError(msg)))
+    plugin._finish_break(
+        player, "uuid-a", "minecraft:iron_ore", "overworld",
+        (2, 64, 2), [("minecraft:iron_ore", [(2, 64, 3)], False)]
+    )
+    assert len(harvested) == 1
+    assert player.tips[-1] == "§a连锁挖掘 +1"
+    assert "uuid-a" not in plugin._active_players
+
 
 def test_server_level_experimental_gate_removed():
     from pathlib import Path
