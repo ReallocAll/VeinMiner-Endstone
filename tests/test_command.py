@@ -74,10 +74,11 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     player.allowed = True
     assert plugin.on_command(player, None, ["reload"])
     assert not plugin.settings.enabled("uuid-a")
-    assert player.tips[-1] == "§7连锁挖掘已关闭"
+    assert "§a设置已重载" in player.messages
 
     assert plugin.on_command(player, None, ["off"])
     assert not plugin.settings.enabled("uuid-a")
+    assert player.tips[-1] == "§7连锁挖掘已关闭"
 
 
 def test_server_level_experimental_gate_removed():
