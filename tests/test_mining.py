@@ -62,6 +62,8 @@ def test_tool_material_tiers_and_strict_allowlist():
     assert correct_tool("minecraft:oak_leaves", "minecraft:wooden_axe")
     assert correct_tool("minecraft:oak_leaves", "minecraft:shears")
     assert not correct_tool("minecraft:oak_leaves", "minecraft:air")
+    assert correct_tool("minecraft:wheat", "minecraft:stick")
+    assert correct_tool("minecraft:carrots", "minecraft:diamond_pickaxe")
     assert not correct_tool("minecraft:chest", "minecraft:iron_axe")
     assert block_category("modded:diamond_ore") is None
 
