@@ -11,7 +11,8 @@
 - Endstone 原生 ActionForm 中文 GUI，点击一键切换，重进服务器及重启后保留。
 - 玩家可执行 `/vm` 或 `/vm gui`，`/veinminer` 是别名；`/vm on`、`/vm off` 仅改变个人开关。
 - `/vm reload` 仅限具有 `veinminer.reload` 权限的管理员，重新读取玩家设置文件。
-- 内置针对有限原版方块的严格工具等级判断和只读有界 BFS：每次最多选中 24 个方块（含起始方块），搜索范围为 6 格半径及同一区块；尚未接入玩家挖掘事件，也不执行世界修改。\n- 不运行 HTTP 更新检查、MySQL、统计存储或额外粒子与音效。不会向聊天栏发送连锁成功提示。
+- 内置针对有限原版方块的严格工具等级判断和只读有界 BFS：每次最多选中 24 个方块（含起始方块），搜索范围为 6 格半径及同一区块；尚未接入玩家挖掘事件，也不执行世界修改。
+- 不运行 HTTP 更新检查、MySQL、统计存储或额外粒子与音效。不会向聊天栏发送连锁成功提示。
 
 ## 安全阻塞
 
@@ -24,6 +25,10 @@ Endstone 0.11 的公开 Python Block API 只有直接修改方块状态的 `set_
 ## 安装与操作
 
 要求 Endstone 0.11、Python 3.12～3.15；BDS 26.51 需要实机验证。构建：`python -m build --wheel`。只在隔离测试服安装 Wheel 到 `plugins/` 并重启。
+
+测试 Wheel 下载：打开 [GitHub Actions](https://github.com/ReallocAll/VeinMiner-Endstone/actions/workflows/ci.yml)，选择本功能分支最近一次**成功**运行，在页面底部的 **Artifacts** 中下载 `veinminer-wheel-py3`，解压 ZIP 后取得 `.whl` 文件。构建产物由 Python 3.14 作业上传，但 Wheel 是 `py3-none-any`，适用于配置中声明的 Python 3.12～3.15。Artifact 保留 30 天。
+
+**此测试包不具备实际连锁破坏功能，不要在正式服务器替换现有连锁插件。**
 
 ClockMenu 使用玩家身份执行 `vm`（不带斜杠的命令字符串按 ClockMenu 当前配置格式填写）；VeinMiner 无 ClockMenu 依赖。
 
