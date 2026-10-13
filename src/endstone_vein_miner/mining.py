@@ -13,6 +13,7 @@ ORE_TIERS = {
     "emerald_ore": 2,
     "lapis_ore": 1,
     "redstone_ore": 2,
+    "lit_redstone_ore": 2,
     "copper_ore": 1,
     "nether_quartz_ore": 0,
     "quartz_ore": 0,
@@ -23,9 +24,10 @@ ORE_TIERS.update(
     {
         f"deepslate_{name}": tier
         for name, tier in tuple(ORE_TIERS.items())
-        if name.endswith("_ore") and not name.startswith("nether_")
+        if name.endswith("_ore") and not name.startswith(("nether_", "lit_"))
     }
 )
+ORE_TIERS["lit_deepslate_redstone_ore"] = ORE_TIERS["redstone_ore"]
 WOOD_TYPES = ("oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak")
 LOGS = {f"minecraft:{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")}
 LOGS.update({f"minecraft:stripped_{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")})
@@ -45,6 +47,20 @@ FACES = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
 NEIGHBORS = FACES + tuple(
     (dx, dy, dz) for dx in (-1, 0, 1) for dy in (-1, 0, 1) for dz in (-1, 0, 1) if abs(dx) + abs(dy) + abs(dz) >= 2
 )
+
+
+def ore_family(block_id: str) -> str | None:
+    """Map supported stone/deepslate and Bedrock lit redstone variants to one ore."""
+    if not block_id.startswith("minecraft:"):
+        return None
+    name = block_id.removeprefix("minecraft:")
+    if name not in ORE_TIERS:
+        return None
+    if name.startswith("lit_"):
+        name = name.removeprefix("lit_")
+    if name.startswith("deepslate_"):
+        name = name.removeprefix("deepslate_")
+    return name
 
 
 def block_category(block_id: str) -> str | None:
@@ -106,6 +122,13 @@ def find_connected(seed) -> list[tuple[int, int, int]]:
     selected = []
     offsets = NEIGHBORS if category == "ores" else FACES
     chunk_x, chunk_z = seed.x >> 4, seed.z >> 4
+    loaded = getattr(dimension, "loaded_chunks", None)
+    loaded_chunks = (
+        {(chunk.x, chunk.z) for chunk in loaded}
+        if loaded is not None
+        else {(chunk_x, chunk_z)}
+    )
+    family = ore_family(block_id) if category == "ores" else None
 
     while queue and len(selected) < MAX_BLOCKS - 1:
         x, y, z = queue.popleft()
@@ -117,15 +140,17 @@ def find_connected(seed) -> list[tuple[int, int, int]]:
             seen.add(point)
             if (
                 max(abs(nx - start[0]), abs(ny - start[1]), abs(nz - start[2])) > MAX_RADIUS
-                or nx >> 4 != chunk_x
-                or nz >> 4 != chunk_z
+                or (nx >> 4, nz >> 4) not in loaded_chunks
             ):
                 continue
             try:
                 adjacent = dimension.get_block_at(nx, ny, nz)
             except (ValueError, RuntimeError):
                 continue
-            if adjacent is not None and adjacent.type == block_id:
+            if adjacent is not None and (
+                (family is not None and ore_family(str(adjacent.type)) == family)
+                or (family is None and adjacent.type == block_id)
+            ):
                 selected.append(point)
                 queue.append(point)
                 if len(selected) == MAX_BLOCKS - 1:
