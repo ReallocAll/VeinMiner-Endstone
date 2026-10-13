@@ -121,8 +121,9 @@ def plant_rewards(
         if type(growth) is not int or not 0 <= growth <= 7:
             return None
         if growth != 7:
-            seed = {"wheat": "wheat_seeds", "beetroot": "beetroot_seeds",
-                    "carrots": "carrot", "potatoes": "potato"}[crop]
+            seed = {"wheat": "wheat_seeds", "beetroot": "beetroot_seeds", "carrots": "carrot", "potatoes": "potato"}[
+                crop
+            ]
             return (Reward(f"minecraft:{seed}", 1, 0),)
 
         # Bedrock: three Bernoulli trials at p=8/15, plus one per Fortune level.
