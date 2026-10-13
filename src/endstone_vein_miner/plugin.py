@@ -17,7 +17,7 @@ from .tree import blocking_leaves, leaf_family
 
 class VeinMinerPlugin(Plugin):
     api_version = "0.11"
-    version = "2.0.3+server.6"
+    version = "2.0.3+server.7"
 
     commands = {
         "vm": {
@@ -42,6 +42,7 @@ class VeinMinerPlugin(Plugin):
         self.register_events(self)
 
     def on_disable(self) -> None:
+        self._audit.close()
         self._last_scan.clear()
         self._active_players.clear()
 
