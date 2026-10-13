@@ -219,8 +219,7 @@ def find_vertical_plant(seed, max_blocks: int) -> list[tuple[int, int, int]]:
     queue = deque([(sx, sz, *origin)])
     visited = {(sx, sz)}
     selected: list[tuple[int, int, int]] = []
-    neighbors = ((dx, dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1) if dx or dz)
-    offsets = tuple(neighbors)
+    offsets = tuple((dx, dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1) if dx or dz)
 
     while queue and len(selected) < max_blocks - 1:
         x, z, bottom, top = queue.popleft()
@@ -237,11 +236,7 @@ def find_vertical_plant(seed, max_blocks: int) -> list[tuple[int, int, int]]:
             column = nx, nz
             if column in visited:
                 continue
-            visited.add(column)
-            if (
-                max(abs(nx - sx), abs(nz - sz)) > radius
-                or (nx >> 4, nz >> 4) not in loaded_chunks
-            ):
+            if max(abs(nx - sx), abs(nz - sz)) > radius or (nx >> 4, nz >> 4) not in loaded_chunks:
                 continue
             for y in range(top, bottom - 1, -1):
                 try:
@@ -251,6 +246,7 @@ def find_vertical_plant(seed, max_blocks: int) -> list[tuple[int, int, int]]:
                 if adjacent == family:
                     bounds = scan_column(nx, y, nz)
                     if bounds is not None:
+                        visited.add(column)
                         queue.append((nx, nz, *bounds))
                     break
     return selected
