@@ -119,7 +119,7 @@ def blocking_leaves(
     seed, logs: list[tuple[int, int, int]], max_blocks: int = MAX_TREE_LEAVES
 ) -> list[tuple[int, int, int]]:
     family = leaf_family(str(seed.type))
-    if not family:
+    if not family or max_blocks < 1:
         return []
     dimension = seed.dimension
     loaded = getattr(dimension, "loaded_chunks", None)
