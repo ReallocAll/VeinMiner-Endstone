@@ -429,3 +429,19 @@ def test_mixed_ore_mining_skips_different_families_even_if_passed_as_targets(mon
     assert engine.mine_extra(player, "minecraft:iron_ore", positions, guard, audit, logger) == 1
     assert len(audited) == 1
     assert blocks[positions[1]].type == "minecraft:gold_ore"
+
+
+def test_shears_with_unavailable_durability_are_not_destroyed(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    tool = player.inventory.item_in_main_hand
+    tool.type = FakeType("minecraft:shears")
+    tool.type.max_durability = 0
+    for block in blocks.values():
+        block.type = "minecraft:oak_leaves"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 0
+    assert player.inventory.item_in_main_hand is tool
+    assert not drops
+    assert all(block.type == "minecraft:oak_leaves" for block in blocks.values())
