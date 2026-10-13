@@ -6,11 +6,11 @@ from endstone import GameMode, Player
 from endstone.event import BlockBreakEvent, EventPriority, event_handler
 from endstone.plugin import Plugin
 
-from .audit import TianyanAudit
 from .engine import mine_extra
 from .gui import show_menu
 from .mining import block_category, find_connected, should_scan
 from .protection import TerritoryBreakGuard
+from .server_limits import ServerLimits
 from .settings import SettingsStore
 from .tree import blocking_leaves, leaf_family
 
@@ -22,7 +22,7 @@ class VeinMinerPlugin(Plugin):
     commands = {
         "vm": {
             "description": "连锁挖掘设置",
-            "usages": ["/vm [gui|on|off|reload]"],
+            "usages": ["/vm [gui|on|off|status|reload]"],
             "aliases": ["veinminer"],
             "permissions": ["veinminer.command"],
         },
@@ -30,19 +30,20 @@ class VeinMinerPlugin(Plugin):
     permissions = {
         "veinminer.command": {"description": "允许玩家使用连锁挖掘菜单", "default": True},
         "veinminer.reload": {"description": "允许管理员重新加载玩家设置", "default": "op"},
+        "veinminer.admin": {"description": "允许管理员配置连锁上限", "default": "op"},
     }
 
     def on_enable(self) -> None:
         self.settings = SettingsStore(self.data_folder / "players.json")
         self.settings.load()
         self._guard = TerritoryBreakGuard(self.data_folder.parent)
-        self._audit = TianyanAudit(self.data_folder.parent)
+        self.limits = ServerLimits(self.data_folder / "server.json")
+        self.limits.load()
         self._last_scan: dict[str, float] = {}
         self._active_players: set[str] = set()
         self.register_events(self)
 
     def on_disable(self) -> None:
-        self._audit.close()
         self._last_scan.clear()
         self._active_players.clear()
 
@@ -66,7 +67,8 @@ class VeinMinerPlugin(Plugin):
             return
         self._last_scan[player_id] = now
         try:
-            positions = find_connected(original)
+            limit = self.limits.for_category(block_category(block_id))
+            positions = find_connected(original, max_blocks=limit)
         except (ValueError, RuntimeError) as exc:
             self.logger.warning(f"连锁挖掘读取目标失败: {exc}")
             return
@@ -75,11 +77,18 @@ class VeinMinerPlugin(Plugin):
         canopy = []
         if block_category(block_id) == "logs":
             leaf_id = leaf_family(block_id)
-            if leaf_id is not None:
-                canopy = blocking_leaves(original, [(original.x, original.y, original.z), *positions])
+            if leaf_id:
+                canopy = blocking_leaves(
+                    original, [(original.x, original.y, original.z), *positions],
+                    max_blocks=self.limits.for_category("leaves")
+                )
         dimension_name = str(original.dimension.name)
         seed = (original.x, original.y, original.z)
-        jobs = ([(leaf_id, canopy, True)] if canopy else []) + [(block_id, positions, False)]
+        leaf_jobs = {}
+        for point in canopy:
+            kind = str(original.dimension.get_block_at(*point).type)
+            leaf_jobs.setdefault(kind, []).append(point)
+        jobs = [(kind, points, True) for kind, points in leaf_jobs.items()] + [(block_id, positions, False)]
         self._active_players.add(player_id)
         try:
             self.server.scheduler.run_task(
@@ -114,9 +123,13 @@ class VeinMinerPlugin(Plugin):
                     return
                 tool = player.inventory.item_in_main_hand
                 tool_id = str(tool.type) if tool is not None else "minecraft:air"
-                if not should_scan(self.settings.get(player_id), bool(player.is_sneaking), seed_block_id, tool_id):
+                # The original event already validated crouching. Touch clients can
+                # release that state before the next server tick.
+                values = self.settings.get(player_id)
+                values["require_sneak"] = False
+                if not should_scan(values, False, seed_block_id, tool_id):
                     return
-                if str(player.dimension.get_block_at(*seed).type) != "minecraft:air":
+                if str(player.dimension.get_block_at(*seed).type) == seed_block_id:
                     return
                 location = player.location
                 if (
@@ -128,7 +141,7 @@ class VeinMinerPlugin(Plugin):
                     > 8
                 ):
                     return
-                if not self._guard.refresh() or not self._audit.refresh():
+                if not self._guard.refresh():
                     return
                 while index < len(jobs) and offset >= len(jobs[index][1]):
                     index += 1
@@ -138,7 +151,7 @@ class VeinMinerPlugin(Plugin):
                 block_id, positions, canopy = jobs[index]
                 batch = positions[offset : offset + 8]
                 offset += len(batch)
-                total += mine_extra(player, block_id, batch, self._guard, self._audit, self.logger, canopy=canopy)
+                total += mine_extra(player, block_id, batch, self._guard, None, self.logger, canopy=canopy)
                 if offset >= len(positions):
                     index += 1
                     offset = 0
@@ -168,6 +181,7 @@ class VeinMinerPlugin(Plugin):
                 return True
             try:
                 self.settings.load()
+                self.limits.load()
             except (OSError, ValueError) as exc:
                 self.logger.error(f"重新加载玩家设置失败: {exc}")
                 sender.send_message("§c设置加载失败")
@@ -177,6 +191,15 @@ class VeinMinerPlugin(Plugin):
 
         if not isinstance(sender, Player):
             sender.send_message("§c仅限玩家使用")
+            return True
+        if action == "status":
+            state = self.settings.get(str(sender.unique_id))
+            sender.send_message(
+                f"§e连锁: {'开' if state['enabled'] else '关'} | "
+                f"蹲下: {'开' if state['require_sneak'] else '关'} | "
+                f"矿石/树木/树叶/植被: "
+                f"{int(state['ores'])}/{int(state['logs'])}/{int(state['leaves'])}/{int(state['plants'])}"
+            )
             return True
 
         if action == "gui":

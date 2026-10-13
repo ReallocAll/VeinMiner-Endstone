@@ -5,7 +5,7 @@ from collections import deque
 from .mining import LEAVES, LOGS, NEIGHBORS
 
 MAX_TREE_LOGS = 160
-MAX_TREE_LEAVES = 64
+MAX_TREE_LEAVES = 256
 MAX_TREE_READS = 5000
 MAX_TREE_HEIGHT = 40
 MAX_TREE_HORIZONTAL = 10
@@ -115,9 +115,11 @@ def find_tree(seed, max_blocks: int = MAX_TREE_LOGS) -> list[tuple[int, int, int
     return found
 
 
-def blocking_leaves(seed, logs: list[tuple[int, int, int]]) -> list[tuple[int, int, int]]:
+def blocking_leaves(
+    seed, logs: list[tuple[int, int, int]], max_blocks: int = MAX_TREE_LEAVES
+) -> list[tuple[int, int, int]]:
     family = leaf_family(str(seed.type))
-    if family is None:
+    if not family:
         return []
     dimension = seed.dimension
     loaded = getattr(dimension, "loaded_chunks", None)
@@ -137,6 +139,6 @@ def blocking_leaves(seed, logs: list[tuple[int, int, int]]) -> list[tuple[int, i
             if not is_natural_leaf(block, family):
                 break
             result.append(point)
-            if len(result) == MAX_TREE_LEAVES:
+            if len(result) >= min(max_blocks, MAX_TREE_LEAVES):
                 return result
     return result

@@ -7,8 +7,8 @@ BDS's native player-break and loot pipeline.
 from random import Random
 
 from .audit import format_states
-from .mining import correct_tool, ore_family
-from .rewards import leaf_rewards, reward_for
+from .mining import PLANTS, correct_tool, ore_family
+from .rewards import Reward, leaf_rewards, plant_rewards, reward_for
 
 
 def _new_item(item_id: str, count: int):
@@ -51,7 +51,7 @@ def mine_extra(
     if enchantments is None:
         return 0
     durability = int(tool.type.max_durability) if meta is not None else 0
-    if meta is not None and durability <= 0:
+    if meta is not None and durability <= 0 and tool_id != "minecraft:shears":
         return 0
 
     count = 0
@@ -76,8 +76,16 @@ def mine_extra(
                 continue
             if not correct_tool(actual_id, tool_id) and not (canopy and actual_id.endswith("_leaves")):
                 continue
-            if canopy or hand:
-                rewards = leaf_rewards(actual_id, rng)
+            if actual_id in PLANTS:
+                rewards = plant_rewards(actual_id, block.data.block_states, rng)
+                if rewards is None:
+                    continue
+            elif canopy or hand or tool_id == "minecraft:shears":
+                rewards = (
+                    (Reward(actual_id, 1, 0),)
+                    if not canopy and tool_id == "minecraft:shears"
+                    else leaf_rewards(actual_id, rng)
+                )
             else:
                 reward = reward_for(
                     actual_id,
@@ -89,8 +97,14 @@ def mine_extra(
                     break
                 rewards = (reward,)
             previous = block.capture_state()
-            states = format_states(block.data.block_states)
-            uid = audit.prepare(str(player.name), str(dimension.name), (x, y, z), actual_id, states)
+            uid = (
+                audit.prepare(
+                    str(player.name), str(dimension.name), (x, y, z), actual_id,
+                    format_states(block.data.block_states)
+                )
+                if audit is not None
+                else None
+            )
         except Exception as exc:
             logger.warning(f"连锁挖掘预检失败，已停止: {exc}")
             break
@@ -101,7 +115,8 @@ def mine_extra(
             block.set_type("minecraft:air", apply_physics=False)
             if block.type != "minecraft:air":
                 raise RuntimeError("方块未被移除")
-            audit.finish(uid, success=True)
+            if audit is not None:
+                audit.finish(uid, success=True)
 
             # Settle tool wear before spawning drops or granting experience so a
             # failed inventory update can be rolled back without duplicating rewards.
@@ -128,7 +143,8 @@ def mine_extra(
                     meta.damage = old_damage
                     tool.set_item_meta(meta)
                     inventory.item_in_main_hand = tool
-                audit.finish(uid, success=False)
+                if audit is not None:
+                    audit.finish(uid, success=False)
             except Exception as rollback_exc:
                 logger.error(f"连锁挖掘回滚/审计失败 ({x},{y},{z}): {rollback_exc}")
             logger.error(f"连锁挖掘执行失败，已停止: {exc}")
