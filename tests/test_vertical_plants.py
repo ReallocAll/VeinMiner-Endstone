@@ -86,18 +86,12 @@ def test_blocked_column_does_not_connect_via_nearby_crops():
 @pytest.mark.parametrize("block_id", ("minecraft:reeds", "minecraft:bamboo", "minecraft:cactus"))
 @pytest.mark.parametrize("hit_y", (70, 71, 72, 74))
 def test_neighboring_columns_share_the_same_harvest_mode(block_id, hit_y):
-    blocks = {
-        (x, y, z): block_id
-        for x, z in ((2, 2), (3, 2), (3, 3))
-        for y in range(70, 75)
-    }
+    blocks = {(x, y, z): block_id for x, z in ((2, 2), (3, 2), (3, 3)) for y in range(70, 75)}
     column = Column(blocks)
     found = find_connected(seed(column, hit_y, block_id))
-    expected = {
-        (x, y, z)
-        for x, z in ((2, 2), (3, 2), (3, 3))
-        for y in range(70 if hit_y == 70 else 71, 75)
-    } - {(2, hit_y, 2)}
+    expected = {(x, y, z) for x, z in ((2, 2), (3, 2), (3, 3)) for y in range(70 if hit_y == 70 else 71, 75)} - {
+        (2, hit_y, 2)
+    }
     assert set(found) == expected
     assert len(found) == len(expected)
     for x, z in ((2, 2), (3, 2), (3, 3)):
@@ -107,9 +101,7 @@ def test_neighboring_columns_share_the_same_harvest_mode(block_id, hit_y):
 
 def test_horizontal_chain_does_not_jump_an_air_gap_or_another_species():
     cane = "minecraft:reeds"
-    blocks = {
-        (x, y, 2): cane for x in (2, 3, 5) for y in range(70, 73)
-    }
+    blocks = {(x, y, 2): cane for x in (2, 3, 5) for y in range(70, 73)}
     blocks.update({(4, y, 2): "minecraft:bamboo" for y in range(70, 73)})
     column = Column(blocks)
     found = find_connected(seed(column, 71, cane))

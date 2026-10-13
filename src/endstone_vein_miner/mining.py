@@ -176,9 +176,7 @@ def find_vertical_plant(seed, max_blocks: int) -> list[tuple[int, int, int]]:
     family = VERTICAL_PLANTS[str(seed.type)]
     sx, sy, sz = seed.x, seed.y, seed.z
     loaded = getattr(dimension, "loaded_chunks", None)
-    loaded_chunks = (
-        {(chunk.x, chunk.z) for chunk in loaded} if loaded is not None else {(sx >> 4, sz >> 4)}
-    )
+    loaded_chunks = {(chunk.x, chunk.z) for chunk in loaded} if loaded is not None else {(sx >> 4, sz >> 4)}
     radius = max(MAX_RADIUS, min(16, int((max_blocks ** (1 / 3)) * 2)))
     cache: dict[tuple[int, int, int], str | None] = {}
 
