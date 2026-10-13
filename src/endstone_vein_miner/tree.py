@@ -20,6 +20,11 @@ def leaf_family(log_id: str) -> frozenset[str]:
             {"minecraft:red_poplar_leaves", "minecraft:orange_poplar_leaves", "minecraft:yellow_poplar_leaves"}
         )
     wood = log_id.removeprefix("minecraft:").removeprefix("stripped_")
+    # Azalea trees use ordinary oak logs with azalea foliage.
+    if wood in {"oak_log", "oak_wood"}:
+        return frozenset(
+            {"minecraft:oak_leaves", "minecraft:azalea_leaves", "minecraft:azalea_leaves_flowered"}
+        )
     for suffix in ("_log", "_wood"):
         if wood.endswith(suffix):
             family = wood.removesuffix(suffix)
