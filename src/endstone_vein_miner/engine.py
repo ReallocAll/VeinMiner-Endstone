@@ -7,10 +7,14 @@ pre-logged in Tianyan. No synthetic BlockBreakEvent or privileged command is use
 
 from random import Random
 
-from endstone.inventory import ItemStack
-
 from .mining import correct_tool
 from .rewards import reward_for
+
+
+def _new_item(item_id: str, count: int):
+    from endstone.inventory import ItemStack
+
+    return ItemStack(item_id, count)
 
 
 def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger) -> int:
@@ -55,7 +59,7 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
             if block.type != "minecraft:air":
                 raise RuntimeError("方块未被移除")
             audit.finish(uid, success=True)
-            dimension.drop_item(previous.location, ItemStack(reward.item, reward.count))
+            dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
             if reward.experience:
                 player.give_exp(reward.experience)
             if not meta.is_unbreakable:
