@@ -46,6 +46,7 @@ def test_gui_toggle_reopens_and_persists_without_chat(tmp_path, monkeypatch):
 
     gui.show_menu(plugin, player)
     assert len(player.forms[-1].buttons) == 5
+    assert player.forms[-1].content == ""
     assert "已关闭" in player.forms[-1].buttons[0]
     player.forms[-1].on_submit(player, 0)
     assert store.enabled("uuid-a")

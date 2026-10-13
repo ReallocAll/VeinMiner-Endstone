@@ -16,11 +16,11 @@ from .settings import SettingsStore
 
 class VeinMinerPlugin(Plugin):
     api_version = "0.11"
-    version = "2.0.3+server.3"
+    version = "2.0.3+server.4"
 
     commands = {
         "vm": {
-            "description": "打开连锁挖掘设置",
+            "description": "连锁挖掘设置",
             "usages": ["/vm [gui|on|off|reload]"],
             "aliases": ["veinminer"],
             "permissions": ["veinminer.command"],
@@ -37,9 +37,6 @@ class VeinMinerPlugin(Plugin):
         self._guard = TerritoryBreakGuard(self.data_folder.parent)
         self._audit = TianyanAudit(self.data_folder.parent)
         self._last_scan: dict[str, float] = {}
-        self.logger.info(
-            "连锁挖掘功能已启用；玩家默认关闭，开启个人开关后仍须通过 Territory 逐方块授权和 Tianyan 审计校验。"
-        )
         self.register_events(self)
 
     def on_disable(self) -> None:
@@ -115,7 +112,7 @@ class VeinMinerPlugin(Plugin):
                 return
             count = mine_extra(player, block_id, positions, self._guard, self._audit, self.logger)
             if count:
-                player.send_tip(f"§a连锁挖掘 §7| §f额外挖掘 §a{count} §f格")
+                player.send_tip(f"§a连锁挖掘 +{count}")
         except Exception as exc:
             self.logger.error(f"连锁挖掘执行异常，已停止: {exc}")
 
@@ -127,19 +124,19 @@ class VeinMinerPlugin(Plugin):
         action = args[0].lower() if args else "gui"
         if action == "reload":
             if not sender.has_permission("veinminer.reload"):
-                sender.send_message("§c没有权限重新加载设置")
+                sender.send_message("§c无权限")
                 return True
             try:
                 self.settings.load()
             except (OSError, ValueError) as exc:
                 self.logger.error(f"重新加载玩家设置失败: {exc}")
-                sender.send_message("§c玩家设置加载失败，当前设置未更改")
+                sender.send_message("§c设置加载失败")
                 return True
-            sender.send_message("§a玩家设置已重新加载")
+            sender.send_message("§a设置已重载")
             return True
 
         if not isinstance(sender, Player):
-            sender.send_message("§c该指令只能由玩家使用")
+            sender.send_message("§c仅限玩家使用")
             return True
 
         if action == "gui":
@@ -151,7 +148,7 @@ class VeinMinerPlugin(Plugin):
                 self.logger.error(f"无法保存玩家连锁设置: {exc}")
                 sender.send_tip("§c设置保存失败")
                 return True
-            sender.send_tip("§a已开启个人连锁设置" if action == "on" else "§7已关闭个人连锁设置")
+            sender.send_tip("§a连锁挖掘已开启" if action == "on" else "§7连锁挖掘已关闭")
         else:
             sender.send_message("§c用法：/vm [gui|on|off|reload]")
         return True

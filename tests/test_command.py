@@ -64,16 +64,17 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     assert plugin.on_command(player, None, ["on"])
     assert plugin.settings.enabled("uuid-a")
     assert not player.messages
-    assert player.tips
+    assert player.tips[-1] == "§a连锁挖掘已开启"
 
     assert plugin.on_command(player, None, ["reload"])
     assert not player.allowed
-    assert any("没有权限" in msg for msg in player.messages)
+    assert any("无权限" in msg for msg in player.messages)
 
     plugin.settings.set("uuid-a", "enabled", False)
     player.allowed = True
     assert plugin.on_command(player, None, ["reload"])
     assert not plugin.settings.enabled("uuid-a")
+    assert player.tips[-1] == "§7连锁挖掘已关闭"
 
     assert plugin.on_command(player, None, ["off"])
     assert not plugin.settings.enabled("uuid-a")

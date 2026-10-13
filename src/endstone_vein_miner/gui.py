@@ -5,8 +5,8 @@ from endstone.form import ActionForm
 from .settings import SETTING_KEYS
 
 LABELS = (
-    "连锁总开关",
-    "需要蹲下触发",
+    "连锁挖掘",
+    "蹲下触发",
     "矿石连锁",
     "树木连锁",
     "树叶连锁",
@@ -16,11 +16,7 @@ LABELS = (
 def show_menu(plugin, player) -> None:
     player_id = str(player.unique_id)
     values = plugin.settings.get(player_id)
-    form = ActionForm(
-        title="§l§6连锁挖掘",
-        content="§7点击切换个人设置。\n§7总开关默认关闭；默认需要蹲下才能挖掘矿脉。"
-        "\n§7附加方块始终受领地保护和天眼审计约束。",
-    )
+    form = ActionForm(title="§l§6连锁挖掘", content="")
     for key, label in zip(SETTING_KEYS, LABELS, strict=True):
         form.add_button(f"§f{label}\n{'§a已开启' if values[key] else '§c已关闭'}")
 
