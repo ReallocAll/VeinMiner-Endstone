@@ -1,25 +1,35 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
 name = "endstone-vein-miner"
-version = "2.0.3"
-description = "A powerful vein mining plugin for Endstone servers - mine entire ore veins, trees, and leaves with one hit!"
-authors = [
-    {name = "Euphoria Development"}
-]
-dependencies = [
-    "endstone>=0.11.0",
-    "pyyaml>=6.0",
-    "mysql-connector-python>=8.0.0"
-]
+version = "2.0.3+server.1"
+description = "Safety-first Chinese UI and per-player controls for the Endstone VeinMiner fork"
+readme = "README.md"
+requires-python = ">=3.12,<3.16"
+license = {file = "LICENSE"}
+authors = [{name = "Euphoria Development Organization"}, {name = "ReallocAll"}]
+dependencies = ["endstone>=0.11,<0.12"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.15,<1", "build>=1.3,<2"]
+
+[project.urls]
+Repository = "https://github.com/ReallocAll/VeinMiner-Endstone"
 
 [project.entry-points."endstone"]
-vein-miner = "endstone_vein_miner:VeinMinerPlugin"
+vein-miner = "endstone_vein_miner.plugin:VeinMinerPlugin"
 
-[tool.hatchling.build.targets.wheel]
+[tool.hatch.build.targets.wheel]
 packages = ["src/endstone_vein_miner"]
 
-[tool.hatchling.build.targets.wheel.force-include]
-"src/endstone_vein_miner/config.toml" = "endstone_vein_miner/config.toml"
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
