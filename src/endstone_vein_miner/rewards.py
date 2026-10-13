@@ -14,8 +14,10 @@ class Reward:
 
 
 def reward_for(block_id: str, rng: Random, *, silk_touch: bool = False, fortune: int = 0) -> Reward | None:
-    if not 0 <= fortune <= 3 or (silk_touch and fortune):
+    if not 0 <= fortune <= 3:
         return None
+    if silk_touch:
+        fortune = 0
     if block_id in LOGS or block_id in LEAVES:
         return Reward(block_id, 1, 0)
     if silk_touch:

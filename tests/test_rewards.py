@@ -32,7 +32,9 @@ def test_silk_touch_and_fortune_resource_drops():
     assert reward_for("minecraft:deepslate_redstone_ore", rng, silk_touch=True) == Reward(
         "minecraft:deepslate_redstone_ore", 1, 0
     )
-    assert reward_for("minecraft:diamond_ore", rng, silk_touch=True, fortune=1) is None
+    assert reward_for("minecraft:diamond_ore", rng, silk_touch=True, fortune=1) == Reward(
+        "minecraft:diamond_ore", 1, 0
+    )
     for level, max_count in ((1, 2), (2, 3), (3, 4)):
         for _ in range(60):
             assert 1 <= reward_for("minecraft:diamond_ore", rng, fortune=level).count <= max_count

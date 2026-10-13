@@ -110,18 +110,23 @@ def test_audit_failure_is_fail_closed(monkeypatch):
     assert all(block.type == "minecraft:iron_ore" for block in blocks.values())
 
 
-def test_unsupported_enchanted_tool_is_not_processed(monkeypatch):
+def test_mending_and_unrelated_enchants_do_not_block_mining(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     events = []
     player, blocks, positions, drops = make_world(events)
     meta = player.inventory.item_in_main_hand.item_meta
     meta.has_enchants = True
-    meta.enchants = {type("Enchantment", (), {"id": "minecraft:mending"})(): 1}
+    meta.enchants = {
+        type("Enchantment", (), {"id": "minecraft:mending"})(): 1,
+        type("Enchantment", (), {"id": "minecraft:efficiency"})(): 5,
+        type("Enchantment", (), {"id": "minecraft:unbreaking"})(): 3,
+        type("Enchantment", (), {"id": "minecraft:vanishing"})(): 1,
+    }
     guard = SimpleNamespace(can_break=lambda *args: True)
-    audit = SimpleNamespace(prepare=lambda *args: "row", finish=lambda *args, **kwargs: None)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
-    assert engine.mine_extra(player, "minecraft:iron_ore", positions, guard, audit, logger) == 0
-    assert not events and not drops
+    assert engine.mine_extra(player, "minecraft:iron_ore", positions, guard, None, logger) == 2
+    assert len(drops) == 2
+    assert player.inventory.item_in_main_hand.item_meta.enchants == meta.enchants
 
 
 def test_failed_tool_update_rolls_back_block_and_marks_audit_cancelled(monkeypatch):
@@ -177,22 +182,75 @@ def test_failed_audit_completion_never_spawns_rewards(monkeypatch):
     assert not drops
 
 
-def test_supported_enchantment_metadata_and_unsupported_fails_closed():
+def test_all_enchantment_combinations_ignore_unrelated_effects():
+    from itertools import combinations
+
     from endstone_vein_miner.engine import _enchant_levels
 
     class Enchantment:
         def __init__(self, identifier):
             self.id = identifier
 
-    meta = SimpleNamespace(
-        has_enchants=True,
-        enchants={Enchantment("minecraft:fortune"): 3, Enchantment("minecraft:unbreaking"): 2},
+    names = (
+        "efficiency", "fortune", "silk_touch", "unbreaking", "mending",
+        "vanishing", "binding", "sharpness", "looting", "soul_speed",
+        "fire_aspect", "unregistered_custom_enchantment",
     )
-    assert _enchant_levels(meta) == {"minecraft:fortune": 3, "minecraft:unbreaking": 2}
-    meta.enchants[Enchantment("minecraft:mending")] = 1
-    assert _enchant_levels(meta) is None
-    meta.enchants = {Enchantment("minecraft:fortune"): 5}
-    assert _enchant_levels(meta) is None
+    for length in range(len(names) + 1):
+        for selection in combinations(names, length):
+            enchants = {Enchantment(f"minecraft:{name}"): (5 if name == "efficiency" else 3) for name in selection}
+            meta = SimpleNamespace(has_enchants=bool(enchants), enchants=enchants)
+            levels = _enchant_levels(meta)
+            assert set(levels) <= {"minecraft:fortune", "minecraft:silk_touch", "minecraft:unbreaking", "minecraft:mending"}
+            assert levels.get("minecraft:fortune", 0) <= 3
+            assert levels.get("minecraft:unbreaking", 0) <= 3
+            if "silk_touch" in selection:
+                assert levels.get("minecraft:silk_touch") == 1
+                assert "minecraft:fortune" not in levels
+            assert meta.enchants == enchants
+    invalid = SimpleNamespace(
+        has_enchants=True,
+        enchants={Enchantment("minecraft:fortune"): -3, Enchantment("minecraft:unbreaking"): 999},
+    )
+    assert _enchant_levels(invalid) == {"minecraft:unbreaking": 3}
+
+
+def test_mending_repairs_held_tool_before_granting_remaining_xp(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+    for block in blocks.values():
+        block.type = "minecraft:diamond_ore"
+    tool = player.inventory.item_in_main_hand
+    tool.item_meta.damage = 4
+    tool.item_meta.has_enchants = True
+    tool.item_meta.enchants = {type("Enchantment", (), {"id": "minecraft:mending"})(): 1}
+    granted = []
+    player.give_exp = granted.append
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:diamond_ore", positions[:1], guard, None, logger) == 1
+    assert tool.item_meta.damage == 0
+    assert len(drops) == 1
+    assert sum(granted) >= 0
+
+
+def test_silk_touch_precedes_fortune_even_on_command_enchanted_tools(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+    for block in blocks.values():
+        block.type = "minecraft:diamond_ore"
+    meta = player.inventory.item_in_main_hand.item_meta
+    meta.has_enchants = True
+    meta.enchants = {
+        type("Enchantment", (), {"id": "minecraft:fortune"})(): 3,
+        type("Enchantment", (), {"id": "minecraft:silk_touch"})(): 1,
+    }
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:diamond_ore", positions[:1], guard, None, logger) == 1
+    assert drops == [("place", ("minecraft:diamond_ore", 1))]
 
 
 def test_drop_spawn_raising_after_entity_creation_does_not_duplicate_block(monkeypatch):

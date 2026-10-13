@@ -1,7 +1,6 @@
-"""Main-thread experimental executor with per-block Territory and Tianyan checks.
+"""Main-thread bounded miner with per-block Territory checks.
 
-Vanilla leaf rolls and selected enchantments are simulated. This is not a replacement for
-BDS's native player-break and loot pipeline.
+Native enchantment metadata is preserved; selected mining effects are simulated.
 """
 
 from random import Random
@@ -17,23 +16,47 @@ def _new_item(item_id: str, count: int):
     return ItemStack(item_id, count)
 
 
-ENCHANTMENTS = {"minecraft:efficiency", "minecraft:fortune", "minecraft:silk_touch", "minecraft:unbreaking"}
+# Only enchantments that affect this plugin's settlement need interpretation.
+# Other enchantments are retained untouched in the original ItemMeta.
+MINING_LEVEL_CAPS = {
+    "minecraft:fortune": 3,
+    "minecraft:silk_touch": 1,
+    "minecraft:unbreaking": 3,
+    "minecraft:mending": 1,
+}
 
 
-def _enchant_levels(meta) -> dict[str, int] | None:
+def _enchant_levels(meta) -> dict[str, int]:
     if not meta.has_enchants:
         return {}
     levels = {}
     for enchantment, level in meta.enchants.items():
         name = str(enchantment.id)
-        if name not in ENCHANTMENTS or type(level) is not int or level < 1:
-            return None
-        if level > (1 if name == "minecraft:silk_touch" else 3 if name != "minecraft:efficiency" else 5):
-            return None
-        levels[name] = level
-    if levels.get("minecraft:silk_touch") and levels.get("minecraft:fortune"):
-        return None
+        if name in MINING_LEVEL_CAPS and type(level) is int and level > 0:
+            levels[name] = min(level, MINING_LEVEL_CAPS[name])
+    # Command-created tools may carry both. Vanilla uses Silk Touch first.
+    if levels.get("minecraft:silk_touch"):
+        levels.pop("minecraft:fortune", None)
     return levels
+
+
+def _award_experience(player, inventory, tool, meta, enchants: dict[str, int], experience: int) -> None:
+    # give_exp directly adds levels and does not create collectible Mending XP orbs.
+    # Repair the held Mending tool first; Endstone cannot currently route this XP
+    # through the full vanilla equipped-item Mending selection mechanism.
+    if experience > 0 and enchants.get("minecraft:mending") and meta is not None:
+        if inventory.item_in_main_hand is not None and not meta.is_unbreakable:
+            damage = int(meta.damage)
+            if damage > 0:
+                spent = min(experience, (damage + 1) // 2)
+                meta.damage = max(0, damage - spent * 2)
+                if not tool.set_item_meta(meta):
+                    meta.damage = damage
+                    raise RuntimeError("无法修复经验修补工具")
+                inventory.item_in_main_hand = tool
+                experience -= spent
+    if experience > 0:
+        player.give_exp(experience)
 
 
 def mine_extra(
@@ -48,8 +71,6 @@ def mine_extra(
         return 0
     meta = tool.item_meta if not hand else None
     enchantments = _enchant_levels(meta) if meta is not None else {}
-    if enchantments is None:
-        return 0
     durability = int(tool.type.max_durability) if meta is not None else 0
     if meta is not None and durability <= 0 and tool_id != "minecraft:shears":
         return 0
@@ -165,9 +186,9 @@ def mine_extra(
         experience = sum(reward.experience for reward in rewards)
         if experience:
             try:
-                player.give_exp(experience)
+                _award_experience(player, inventory, tool, meta, enchantments, experience)
             except Exception as exc:
-                logger.error(f"连锁挖掘经验发放失败 ({x},{y},{z}): {exc}")
+                logger.error(f"连锁挖掘经验/经验修补结算失败 ({x},{y},{z}): {exc}")
                 count += 1
                 break
         count += 1
