@@ -77,3 +77,11 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
 
     assert plugin.on_command(player, None, ["off"])
     assert not plugin.settings.enabled("uuid-a")
+
+
+def test_server_level_experimental_gate_removed():
+    from pathlib import Path
+
+    source = Path("src/endstone_vein_miner/plugin.py").read_text(encoding="utf-8")
+    assert "experimental_extra_breaks" not in source
+    assert "_extra_enabled" not in source

@@ -1,8 +1,6 @@
-"""Native Endstone entry point for the experimental, fail-closed VeinMiner fork."""
+"""Native Endstone entry point for the production-intended, fail-closed VeinMiner fork."""
 
-import json
 import time
-from pathlib import Path
 
 from endstone import GameMode, Player
 from endstone.event import BlockBreakEvent, EventPriority, event_handler
@@ -18,7 +16,7 @@ from .settings import SettingsStore
 
 class VeinMinerPlugin(Plugin):
     api_version = "0.11"
-    version = "2.0.3+server.2"
+    version = "2.0.3+server.3"
 
     commands = {
         "vm": {
@@ -39,30 +37,18 @@ class VeinMinerPlugin(Plugin):
         self._guard = TerritoryBreakGuard(self.data_folder.parent)
         self._audit = TianyanAudit(self.data_folder.parent)
         self._last_scan: dict[str, float] = {}
-        self._extra_enabled = False
-        options_path = Path(self.data_folder) / "experimental.json"
-        if options_path.exists():
-            try:
-                options = json.loads(options_path.read_text(encoding="utf-8"))
-                self._extra_enabled = isinstance(options, dict) and options.get("experimental_extra_breaks") is True
-            except (OSError, ValueError) as exc:
-                self.logger.error(f"实验性设置加载失败，连锁破坏保持禁用: {exc}")
-        if self._extra_enabled:
-            self.logger.warning(
-                "实验性额外破坏已启用：仅支持无附魔工具和 Tianyan SQLite；"
-                "必须先在独立测试服验证原版结算与跨插件一致性。"
-            )
-        else:
-            self.logger.warning("额外连锁破坏仍禁用。仅实验性配置显式开启时才允许尝试。")
+        self.logger.info(
+            "连锁挖掘功能已启用；玩家默认关闭，开启个人开关后仍须通过 "
+            "Territory 逐方块授权和 Tianyan 审计校验。"
+        )
         self.register_events(self)
 
     def on_disable(self) -> None:
-        self._extra_enabled = False
         self._last_scan.clear()
 
     @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
     def on_block_break(self, event: BlockBreakEvent) -> None:
-        if not self._extra_enabled or event.is_cancelled:
+        if event.is_cancelled:
             return
         player = event.player
         if not player.is_valid or player.game_mode != GameMode.SURVIVAL:
@@ -104,7 +90,7 @@ class VeinMinerPlugin(Plugin):
         seed: tuple[int, int, int],
         positions: list[tuple[int, int, int]],
     ) -> None:
-        if not self._extra_enabled or not player.is_valid or player.game_mode != GameMode.SURVIVAL:
+        if not player.is_valid or player.game_mode != GameMode.SURVIVAL:
             return
         if str(player.dimension.name) != dimension_name:
             return
