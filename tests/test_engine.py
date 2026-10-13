@@ -30,12 +30,13 @@ class FakeBlock:
 
     def capture_state(self):
         block = self
+        original_type = self.type
 
         class State:
             location = "place"
 
             def update(self, force=True, apply_physics=False):
-                block.type = "minecraft:iron_ore"
+                block.type = original_type
                 return True
 
         return State()
@@ -367,7 +368,7 @@ def test_shears_durability_failure_rolls_back_leaf_and_skips_drops(monkeypatch):
     guard = SimpleNamespace(can_break=lambda *args: True)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions[:1], guard, None, logger) == 0
-    assert blocks[positions[0]].type == "minecraft:iron_ore"
+    assert blocks[positions[0]].type == "minecraft:oak_leaves"
     assert drops == []
 
 
