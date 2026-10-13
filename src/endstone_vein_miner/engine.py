@@ -1,7 +1,4 @@
-"""Main-thread bounded miner with per-block Territory checks.
-
-Native enchantment metadata is preserved; selected mining effects are simulated.
-"""
+"""Main-thread bounded miner with per-block Territory checks and Bedrock loot simulation."""
 
 from random import Random
 
@@ -72,7 +69,12 @@ def mine_extra(
     meta = tool.item_meta if not hand else None
     enchantments = _enchant_levels(meta) if meta is not None else {}
     durability = int(tool.type.max_durability) if meta is not None else 0
-    if meta is not None and durability <= 0:
+    if (
+        meta is not None
+        and durability <= 0
+        and (tool_id == "minecraft:shears" or tool_id.endswith(("_pickaxe", "_axe", "_hoe", "_shovel", "_sword")))
+    ):
+        # A real tool with missing durability metadata is unsafe to consume.
         return 0
 
     count = 0
@@ -105,16 +107,23 @@ def mine_extra(
             if not correct_tool(actual_id, tool_id) and not (canopy and actual_id.endswith("_leaves")):
                 continue
             if actual_id in PLANTS:
-                rewards = plant_rewards(actual_id, block.data.block_states, rng)
+                rewards = plant_rewards(
+                    actual_id,
+                    block.data.block_states,
+                    rng,
+                    silk_touch=bool(enchantments.get("minecraft:silk_touch")),
+                    fortune=enchantments.get("minecraft:fortune", 0),
+                    shears=tool_id == "minecraft:shears",
+                )
                 if rewards is None:
                     continue
             elif actual_id in LEAVES:
-                # Axes always behave like bare hands for chained leaves,
-                # regardless of enchantments. Shears collect intact leaf blocks.
+                # Shears and Silk Touch collect the block; Fortune affects
+                # the independent sapling, stick and apple rolls otherwise.
                 rewards = (
                     (Reward(actual_id, 1, 0),)
-                    if not canopy and tool_id == "minecraft:shears"
-                    else leaf_rewards(actual_id, rng)
+                    if tool_id == "minecraft:shears" or enchantments.get("minecraft:silk_touch")
+                    else leaf_rewards(actual_id, rng, fortune=enchantments.get("minecraft:fortune", 0))
                 )
             else:
                 reward = reward_for(
@@ -151,8 +160,7 @@ def mine_extra(
             # failed inventory update can be rolled back without duplicating rewards.
             if (
                 meta is not None
-                and not canopy
-                and (actual_id not in LEAVES or tool_id == "minecraft:shears")
+                and durability > 0
                 and not meta.is_unbreakable
                 and rng.randrange(enchantments.get("minecraft:unbreaking", 0) + 1) == 0
             ):
