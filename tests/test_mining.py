@@ -1,0 +1,96 @@
+from types import SimpleNamespace
+
+from endstone_vein_miner.mining import (
+    MAX_BLOCKS,
+    block_category,
+    correct_tool,
+    find_connected,
+    should_scan,
+)
+from endstone_vein_miner.settings import DEFAULT_SETTINGS
+
+
+class FakeDimension:
+    def __init__(self, blocks):
+        self.blocks = blocks
+        self.reads = []
+
+    def get_block_at(self, x, y, z):
+        point = x, y, z
+        self.reads.append(point)
+        return SimpleNamespace(type=self.blocks.get(point, "minecraft:stone"))
+
+
+def seed_at(dimension, point=(2, 64, 2)):
+    return SimpleNamespace(
+        dimension=dimension,
+        type=dimension.blocks[point],
+        x=point[0],
+        y=point[1],
+        z=point[2],
+    )
+
+
+def test_safe_defaults_and_activation_requirements():
+    settings = DEFAULT_SETTINGS.copy()
+    assert not should_scan(settings, True, "minecraft:diamond_ore", "minecraft:iron_pickaxe")
+    settings["enabled"] = True
+    assert not should_scan(settings, False, "minecraft:diamond_ore", "minecraft:iron_pickaxe")
+    assert should_scan(settings, True, "minecraft:diamond_ore", "minecraft:iron_pickaxe")
+    settings["require_sneak"] = False
+    assert should_scan(settings, False, "minecraft:diamond_ore", "minecraft:iron_pickaxe")
+    settings["ores"] = False
+    assert not should_scan(settings, False, "minecraft:diamond_ore", "minecraft:iron_pickaxe")
+    assert not should_scan(settings, True, "minecraft:oak_log", "minecraft:iron_axe")
+    settings["logs"] = True
+    assert should_scan(settings, False, "minecraft:oak_log", "minecraft:iron_axe")
+
+
+def test_tool_material_tiers_and_strict_allowlist():
+    assert not correct_tool("minecraft:diamond_ore", "minecraft:wooden_pickaxe")
+    assert not correct_tool("minecraft:ancient_debris", "minecraft:iron_pickaxe")
+    assert correct_tool("minecraft:ancient_debris", "minecraft:diamond_pickaxe")
+    assert correct_tool("minecraft:copper_ore", "minecraft:stone_pickaxe")
+    assert not correct_tool("minecraft:iron_ore", "minecraft:golden_pickaxe")
+    assert not correct_tool("minecraft:oak_log", "minecraft:diamond_pickaxe")
+    assert correct_tool("minecraft:oak_log", "minecraft:wooden_axe")
+    assert correct_tool("minecraft:oak_leaves", "minecraft:shears")
+    assert not correct_tool("minecraft:oak_leaves", "minecraft:iron_axe")
+    assert not correct_tool("minecraft:chest", "minecraft:iron_axe")
+    assert block_category("modded:diamond_ore") is None
+
+
+def test_bfs_is_bounded_and_never_changes_world():
+    original = {(x, 64, z): "minecraft:coal_ore" for x in range(2, 15) for z in range(2, 15)}
+    world = FakeDimension(original.copy())
+    positions = find_connected(seed_at(world))
+    assert len(positions) == MAX_BLOCKS - 1
+    assert len(set(positions)) == len(positions)
+    assert (2, 64, 2) not in positions
+    assert all(p[0] < 16 and p[2] < 16 for p in world.reads)
+    assert len(world.reads) <= MAX_BLOCKS * 26
+    assert world.blocks == original
+
+
+def test_bfs_protects_unloaded_chunk_edge_and_radius():
+    blocks = {(15, 64, 2): "minecraft:diamond_ore", (16, 64, 2): "minecraft:diamond_ore"}
+    for y in range(65, 85):
+        blocks[(15, y, 2)] = "minecraft:diamond_ore"
+    world = FakeDimension(blocks)
+    found = find_connected(seed_at(world, (15, 64, 2)))
+    assert (16, 64, 2) not in found
+    assert (15, 70, 2) in found
+    assert (15, 71, 2) not in found
+    assert all(x < 16 for x, _, _ in world.reads)
+
+
+def test_bfs_uses_six_neighbors_for_logs_and_fails_closed_for_unknown_blocks():
+    blocks = {(2, 64, 2): "minecraft:oak_log", (3, 65, 2): "minecraft:oak_log", (2, 65, 2): "minecraft:oak_log"}
+    world = FakeDimension(blocks)
+    found = find_connected(seed_at(world))
+    assert (2, 65, 2) in found
+    assert (3, 65, 2) in found
+    unknown = SimpleNamespace(type="minecraft:chest", dimension=world, x=2, y=64, z=2)
+    before = len(world.reads)
+    assert find_connected(unknown) == []
+    assert len(world.reads) == before
