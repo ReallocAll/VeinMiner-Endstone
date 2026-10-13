@@ -34,6 +34,9 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
 
     endstone.Player = Player
     plugin_module.Plugin = Plugin
+    gui_module = types.ModuleType("endstone_vein_miner.gui")
+    gui_module.show_menu = lambda plugin, player: None
+    monkeypatch.setitem(sys.modules, "endstone_vein_miner.gui", gui_module)
     monkeypatch.setitem(sys.modules, "endstone", endstone)
     monkeypatch.setitem(sys.modules, "endstone.plugin", plugin_module)
     monkeypatch.delitem(sys.modules, "endstone_vein_miner.plugin", raising=False)
