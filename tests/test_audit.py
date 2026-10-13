@@ -76,11 +76,10 @@ def test_tianyan_state_suffix_is_bedrock_setblock_compatible():
     with pytest.raises(ValueError):
         format_states({"foo": [1, 2]})
 
+
 def test_tianyan_break_logging_disabled_blocks_extra_mining(tmp_path):
     audit = create_audit(tmp_path)
-    audit.config_path.write_text(
-        json.dumps({"database_type": "sqlite", "log_block_break": False}), encoding="utf-8"
-    )
+    audit.config_path.write_text(json.dumps({"database_type": "sqlite", "log_block_break": False}), encoding="utf-8")
     assert not audit.refresh()
     with pytest.raises(RuntimeError):
         audit.prepare("Alice", "overworld", (1, 70, 2), "minecraft:diamond_ore", "")
