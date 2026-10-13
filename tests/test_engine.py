@@ -192,9 +192,18 @@ def test_all_enchantment_combinations_ignore_unrelated_effects():
             self.id = identifier
 
     names = (
-        "efficiency", "fortune", "silk_touch", "unbreaking", "mending",
-        "vanishing", "binding", "sharpness", "looting", "soul_speed",
-        "fire_aspect", "unregistered_custom_enchantment",
+        "efficiency",
+        "fortune",
+        "silk_touch",
+        "unbreaking",
+        "mending",
+        "vanishing",
+        "binding",
+        "sharpness",
+        "looting",
+        "soul_speed",
+        "fire_aspect",
+        "unregistered_custom_enchantment",
     )
     for length in range(len(names) + 1):
         for selection in combinations(names, length):
@@ -202,7 +211,10 @@ def test_all_enchantment_combinations_ignore_unrelated_effects():
             meta = SimpleNamespace(has_enchants=bool(enchants), enchants=enchants)
             levels = _enchant_levels(meta)
             assert set(levels) <= {
-                "minecraft:fortune", "minecraft:silk_touch", "minecraft:unbreaking", "minecraft:mending"
+                "minecraft:fortune",
+                "minecraft:silk_touch",
+                "minecraft:unbreaking",
+                "minecraft:mending",
             }
             assert levels.get("minecraft:fortune", 0) <= 3
             assert levels.get("minecraft:unbreaking", 0) <= 3
