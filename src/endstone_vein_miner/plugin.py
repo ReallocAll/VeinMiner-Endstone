@@ -105,6 +105,7 @@ class VeinMinerPlugin(Plugin):
 
         def step() -> None:
             nonlocal index, offset, total
+            continued = False
             try:
                 if not player.is_valid or player.game_mode != GameMode.SURVIVAL:
                     return
@@ -141,19 +142,17 @@ class VeinMinerPlugin(Plugin):
                     offset = 0
                 if index < len(jobs):
                     self.server.scheduler.run_task(self, step, delay=1)
+                    continued = True
                     return
             except Exception as exc:
                 self.logger.error(f"连锁挖掘失败: {exc}")
             finally:
-                # A scheduled follow-up keeps the per-player session active.
-                if index >= len(jobs) or not player.is_valid:
+                if not continued:
                     self._active_players.discard(player_id)
+                    if total and player.is_valid:
+                        player.send_tip(f"§a连锁挖掘 +{total}")
 
         step()
-        if player_id in self._active_players and index >= len(jobs):
-            self._active_players.discard(player_id)
-        if total:
-            player.send_tip(f"§a连锁挖掘 +{total}")
 
     def on_command(self, sender, command, args: list[str]) -> bool:
         if len(args) > 1:
