@@ -445,3 +445,37 @@ def test_shears_with_unavailable_durability_are_not_destroyed(monkeypatch):
     assert player.inventory.item_in_main_hand is tool
     assert not drops
     assert all(block.type == "minecraft:oak_leaves" for block in blocks.values())
+
+
+def test_kelp_top_and_stem_can_be_settled_as_one_plant_family(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    blocks[positions[0]].type = "minecraft:kelp"
+    blocks[positions[1]].type = "minecraft:kelp_plant"
+    player.inventory.item_in_main_hand = None
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:kelp", positions, guard, None, logger) == 2
+    assert [stack for _, stack in drops] == [("minecraft:kelp", 1), ("minecraft:kelp", 1)]
+    assert all(block.type == "minecraft:air" for block in blocks.values())
+
+
+def test_vertical_plant_targets_still_enforce_territory_permissions(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    for block in blocks.values():
+        block.type = "minecraft:reeds"
+    player.inventory.item_in_main_hand = None
+    protected = positions[0]
+    checked = []
+
+    def can_break(player_name, is_op, dimension, x, y, z):
+        checked.append((x, y, z))
+        return (x, y, z) != protected
+
+    guard = SimpleNamespace(can_break=can_break)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:reeds", positions, guard, None, logger) == 1
+    assert checked == positions
+    assert blocks[protected].type == "minecraft:reeds"
+    assert [stack for _, stack in drops] == [("minecraft:sugar_cane", 1)]
