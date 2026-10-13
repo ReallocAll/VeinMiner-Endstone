@@ -193,3 +193,26 @@ def test_supported_enchantment_metadata_and_unsupported_fails_closed():
     assert _enchant_levels(meta) is None
     meta.enchants = {Enchantment("minecraft:fortune"): 5}
     assert _enchant_levels(meta) is None
+
+
+def test_drop_spawn_raising_after_entity_creation_does_not_duplicate_block(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+
+    def spawn_then_fail(location, stack):
+        drops.append((location, stack))
+        raise RuntimeError("entity spawned, return failed")
+
+    player.dimension.drop_item = spawn_then_fail
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    audit = SimpleNamespace(
+        prepare=lambda *args: "row",
+        finish=lambda row, *, success: events.append("audit_success" if success else "audit_cancel"),
+    )
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    count = engine.mine_extra(player, "minecraft:iron_ore", positions[:1], guard, audit, logger)
+    assert count == 1
+    assert blocks[positions[0]].type == "minecraft:air"
+    assert len(drops) == 1
+    assert events == ["block_removed", "audit_success"]
