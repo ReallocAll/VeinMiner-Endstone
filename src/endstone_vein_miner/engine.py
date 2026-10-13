@@ -7,7 +7,7 @@ BDS's native player-break and loot pipeline.
 from random import Random
 
 from .audit import format_states
-from .mining import correct_tool
+from .mining import correct_tool, ore_family
 from .rewards import leaf_rewards, reward_for
 
 
@@ -55,6 +55,7 @@ def mine_extra(
         return 0
 
     count = 0
+    family = ore_family(block_id)
     rng = Random()
     for x, y, z in positions[:8]:
         live_tool = inventory.item_in_main_hand
@@ -70,13 +71,18 @@ def mine_extra(
 
         try:
             block = dimension.get_block_at(x, y, z)
-            if block.type != block_id:
+            actual_id = str(block.type)
+            if (family is not None and ore_family(actual_id) != family) or (
+                family is None and actual_id != block_id
+            ):
+                continue
+            if not correct_tool(actual_id, tool_id) and not (canopy and actual_id.endswith("_leaves")):
                 continue
             if canopy or hand:
-                rewards = leaf_rewards(block_id, rng)
+                rewards = leaf_rewards(actual_id, rng)
             else:
                 reward = reward_for(
-                    block_id,
+                    actual_id,
                     rng,
                     silk_touch=bool(enchantments.get("minecraft:silk_touch")),
                     fortune=enchantments.get("minecraft:fortune", 0),
@@ -86,7 +92,7 @@ def mine_extra(
                 rewards = (reward,)
             previous = block.capture_state()
             states = format_states(block.data.block_states)
-            uid = audit.prepare(str(player.name), str(dimension.name), (x, y, z), block_id, states)
+            uid = audit.prepare(str(player.name), str(dimension.name), (x, y, z), actual_id, states)
         except Exception as exc:
             logger.warning(f"连锁挖掘预检失败，已停止: {exc}")
             break
