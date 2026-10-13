@@ -8,7 +8,7 @@ from random import Random
 
 from .audit import format_states
 from .mining import correct_tool
-from .rewards import reward_for
+from .rewards import leaf_rewards, reward_for
 
 
 def _new_item(item_id: str, count: int):
@@ -36,25 +36,32 @@ def _enchant_levels(meta) -> dict[str, int] | None:
     return levels
 
 
-def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger) -> int:
+def mine_extra(
+    player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger, *, canopy: bool = False
+) -> int:
     dimension = player.dimension
     inventory = player.inventory
     tool = inventory.item_in_main_hand
-    if tool is None or not correct_tool(block_id, str(tool.type)):
+    tool_id = str(tool.type) if tool is not None else "minecraft:air"
+    hand = tool_id == "minecraft:air"
+    if not correct_tool(block_id, tool_id) and not (canopy and block_id.endswith("_leaves")):
         return 0
-    meta = tool.item_meta
-    enchantments = _enchant_levels(meta)
+    meta = tool.item_meta if not hand else None
+    enchantments = _enchant_levels(meta) if meta is not None else {}
     if enchantments is None:
         return 0
-    durability = int(tool.type.max_durability)
-    if durability <= 0:
+    durability = int(tool.type.max_durability) if meta is not None else 0
+    if meta is not None and durability <= 0:
         return 0
 
     count = 0
     rng = Random()
-    for x, y, z in positions[:23]:
+    for x, y, z in positions[:8]:
         live_tool = inventory.item_in_main_hand
-        if live_tool is None or live_tool != tool:
+        if hand:
+            if live_tool is not None and str(live_tool.type) != "minecraft:air":
+                break
+        elif live_tool is None or live_tool != tool:
             break
         if not player.is_valid or str(player.dimension.name) != str(dimension.name):
             break
@@ -65,14 +72,18 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
             block = dimension.get_block_at(x, y, z)
             if block.type != block_id:
                 continue
-            reward = reward_for(
-                block_id,
-                rng,
-                silk_touch=bool(enchantments.get("minecraft:silk_touch")),
-                fortune=enchantments.get("minecraft:fortune", 0),
-            )
-            if reward is None:
-                break
+            if canopy or hand:
+                rewards = leaf_rewards(block_id, rng)
+            else:
+                reward = reward_for(
+                    block_id,
+                    rng,
+                    silk_touch=bool(enchantments.get("minecraft:silk_touch")),
+                    fortune=enchantments.get("minecraft:fortune", 0),
+                )
+                if reward is None:
+                    break
+                rewards = (reward,)
             previous = block.capture_state()
             states = format_states(block.data.block_states)
             uid = audit.prepare(str(player.name), str(dimension.name), (x, y, z), block_id, states)
@@ -80,7 +91,7 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
             logger.warning(f"连锁挖掘预检失败，已停止: {exc}")
             break
 
-        old_damage = meta.damage
+        old_damage = meta.damage if meta is not None else 0
         item_changed = False
         try:
             block.set_type("minecraft:air", apply_physics=False)
@@ -90,7 +101,12 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
 
             # Settle tool wear before spawning drops or granting experience so a
             # failed inventory update can be rolled back without duplicating rewards.
-            if not meta.is_unbreakable and rng.randrange(enchantments.get("minecraft:unbreaking", 0) + 1) == 0:
+            if (
+                meta is not None
+                and not canopy
+                and not meta.is_unbreakable
+                and rng.randrange(enchantments.get("minecraft:unbreaking", 0) + 1) == 0
+            ):
                 meta.damage = old_damage + 1
                 if meta.damage >= durability:
                     inventory.item_in_main_hand = None
@@ -118,7 +134,8 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
         # an entity. Do not restore the block in that ambiguous case: it could
         # duplicate both the block and spawned reward.
         try:
-            dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
+            for reward in rewards:
+                dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
         except Exception as exc:
             logger.error(f"连锁挖掘掉落生成状态不明，停止且不回滚 ({x},{y},{z}): {exc}")
             count += 1
@@ -126,14 +143,15 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
 
         # The drop has already been spawned and the block broken. An XP error
         # cannot safely be undone without duping the drop or block.
-        if reward.experience:
+        experience = sum(reward.experience for reward in rewards)
+        if experience:
             try:
-                player.give_exp(reward.experience)
+                player.give_exp(experience)
             except Exception as exc:
                 logger.error(f"连锁挖掘经验发放失败 ({x},{y},{z}): {exc}")
                 count += 1
                 break
         count += 1
-        if inventory.item_in_main_hand is None:
+        if not hand and inventory.item_in_main_hand is None:
             break
     return count
