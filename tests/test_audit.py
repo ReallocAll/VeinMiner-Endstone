@@ -68,7 +68,7 @@ def test_tianyan_state_suffix_is_bedrock_setblock_compatible():
         ' ["facing_direction"=2,"upside_down_bit"=true]'
     )
     with pytest.raises(ValueError):
-        format_states({"pillar_axis": "x\" /kill @a"})
+        format_states({"pillar_axis": 'x" /kill @a'})
     with pytest.raises(ValueError):
         format_states({"invalid key": 3})
     with pytest.raises(ValueError):

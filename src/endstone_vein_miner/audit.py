@@ -51,7 +51,7 @@ def format_states(states: dict[str, bool | int | str]) -> str:
             encoded = str(value)
         else:
             raise ValueError("未知的方块状态值")
-        entries.append(f'{json.dumps(key)}={encoded}')
+        entries.append(f"{json.dumps(key)}={encoded}")
     return " [" + ",".join(entries) + "]"
 
 
