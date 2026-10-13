@@ -38,8 +38,7 @@ class VeinMinerPlugin(Plugin):
         self._audit = TianyanAudit(self.data_folder.parent)
         self._last_scan: dict[str, float] = {}
         self.logger.info(
-            "连锁挖掘功能已启用；玩家默认关闭，开启个人开关后仍须通过 "
-            "Territory 逐方块授权和 Tianyan 审计校验。"
+            "连锁挖掘功能已启用；玩家默认关闭，开启个人开关后仍须通过 Territory 逐方块授权和 Tianyan 审计校验。"
         )
         self.register_events(self)
 
