@@ -6,7 +6,7 @@ Native enchantment metadata is preserved; selected mining effects are simulated.
 from random import Random
 
 from .audit import format_states
-from .mining import PLANTS, correct_tool, ore_family
+from .mining import LEAVES, PLANTS, correct_tool, ore_family
 from .rewards import Reward, leaf_rewards, plant_rewards, reward_for
 
 
@@ -101,12 +101,13 @@ def mine_extra(
                 rewards = plant_rewards(actual_id, block.data.block_states, rng)
                 if rewards is None:
                     continue
-            elif canopy or hand or tool_id == "minecraft:shears":
-                rewards = (
-                    (Reward(actual_id, 1, 0),)
-                    if not canopy and tool_id == "minecraft:shears"
-                    else leaf_rewards(actual_id, rng)
-                )
+            elif actual_id in LEAVES:
+                if not canopy and enchantments.get("minecraft:silk_touch"):
+                    rewards = (Reward(actual_id, 1, 0),)
+                else:
+                    rewards = leaf_rewards(
+                        actual_id, rng, fortune=0 if canopy else enchantments.get("minecraft:fortune", 0)
+                    )
             else:
                 reward = reward_for(
                     actual_id,

@@ -66,9 +66,10 @@ def reward_for(block_id: str, rng: Random, *, silk_touch: bool = False, fortune:
 
 # Leaves can yield more than one independent item. Air/hand breaks never
 # grant a leaf block; silk-touch/shears are handled separately by the executor.
-def leaf_rewards(block_id: str, rng: Random) -> tuple[Reward, ...]:
+def leaf_rewards(block_id: str, rng: Random, *, fortune: int = 0) -> tuple[Reward, ...]:
     if block_id not in LEAVES:
         return ()
+    fortune = max(0, min(int(fortune), 3))
     leaf = block_id.removeprefix("minecraft:").removesuffix("_leaves")
     sapling = None
     if leaf == "azalea":
@@ -83,11 +84,12 @@ def leaf_rewards(block_id: str, rng: Random) -> tuple[Reward, ...]:
         sapling = "minecraft:poplar_sapling"
     if leaf == "azalea_leaves_flowered" or block_id == "minecraft:azalea_leaves_flowered":
         sapling = "minecraft:flowering_azalea"
-    if sapling and rng.random() < (0.025 if leaf == "jungle" else 0.05):
+    sapling_chances = (40, 36, 32, 24) if leaf == "jungle" else (20, 16, 12, 10)
+    if sapling and rng.randrange(sapling_chances[fortune]) == 0:
         results.append(Reward(sapling, 1, 0))
-    if rng.random() < 0.02:
+    if rng.randrange((50, 45, 40, 30)[fortune]) == 0:
         results.append(Reward("minecraft:stick", rng.randint(1, 2), 0))
-    if leaf in {"oak", "dark_oak"} and rng.random() < 0.005:
+    if leaf in {"oak", "dark_oak"} and rng.randrange((200, 180, 160, 120)[fortune]) == 0:
         results.append(Reward("minecraft:apple", 1, 0))
     return tuple(results)
 

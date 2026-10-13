@@ -55,6 +55,7 @@ class TerritoryBreakGuard:
         self.db_path = plugins_dir / "territory" / "territory_data.db"
         self.config_path = plugins_dir / "territory" / "config.json"
         self.claims: tuple[Claim, ...] = ()
+        self.claims_by_dimension: dict[str, tuple[Claim, ...]] = {}
         self.allow_op_as_member = False
         self.healthy = False
         self.error: str | None = None
@@ -64,6 +65,7 @@ class TerritoryBreakGuard:
         # connections see committed territory changes even when the main DB mtime is unchanged.
         self.healthy = False
         self.claims = ()
+        self.claims_by_dimension = {}
         if not self.db_path.is_file() or not self.config_path.is_file():
             self.error = "Territory 数据库或配置不存在"
             return False
@@ -95,6 +97,10 @@ class TerritoryBreakGuard:
                     )
                 )
             self.claims = tuple(claims)
+            grouped: dict[str, list[Claim]] = {}
+            for claim in claims:
+                grouped.setdefault(claim.dimension, []).append(claim)
+            self.claims_by_dimension = {key: tuple(value) for key, value in grouped.items()}
             self.allow_op_as_member = config["allow_op_as_member"]
         except (OSError, ValueError, TypeError, sqlite3.Error, KeyError) as exc:
             self.error = str(exc)
@@ -106,11 +112,18 @@ class TerritoryBreakGuard:
     def can_break(self, player_name: str, is_op: bool, dimension: str, x: int, y: int, z: int) -> bool:
         if not self.healthy:
             return False
-        matches = [claim for claim in self.claims if claim.contains(dimension, x, y, z)]
-        if not matches:
-            return True
-        children = [claim for claim in matches if claim.parent]
-        effective = children if children else matches
         if is_op and self.allow_op_as_member:
             return True
-        return all(claim.public_break or player_name in claim.members for claim in effective)
+        parent_allowed = True
+        child_allowed = True
+        has_child = False
+        for claim in self.claims_by_dimension.get(dimension, ()):
+            if not claim.contains(dimension, x, y, z):
+                continue
+            allowed = claim.public_break or player_name in claim.members
+            if claim.parent:
+                has_child = True
+                child_allowed = child_allowed and allowed
+            else:
+                parent_allowed = parent_allowed and allowed
+        return child_allowed if has_child else parent_allowed
