@@ -99,8 +99,7 @@ def mine_extra(
             previous = block.capture_state()
             uid = (
                 audit.prepare(
-                    str(player.name), str(dimension.name), (x, y, z), actual_id,
-                    format_states(block.data.block_states)
+                    str(player.name), str(dimension.name), (x, y, z), actual_id, format_states(block.data.block_states)
                 )
                 if audit is not None
                 else None

@@ -124,8 +124,8 @@ def correct_tool(block_id: str, item_id: str) -> bool:
     if category == "leaves":
         return item_id in {"minecraft:shears", "minecraft:air"}
     if category == "plants":
-        return item_id == "minecraft:air" or item_id == "minecraft:shears" or item_id.endswith(
-            ("_axe", "_hoe", "_sword")
+        return (
+            item_id == "minecraft:air" or item_id == "minecraft:shears" or item_id.endswith(("_axe", "_hoe", "_sword"))
         )
     required = "pickaxe" if category == "ores" else "axe"
     prefix, separator, kind = item_id.removeprefix("minecraft:").rpartition("_")

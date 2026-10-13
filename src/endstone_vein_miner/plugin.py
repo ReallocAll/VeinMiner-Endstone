@@ -79,8 +79,9 @@ class VeinMinerPlugin(Plugin):
             leaf_id = leaf_family(block_id)
             if leaf_id:
                 canopy = blocking_leaves(
-                    original, [(original.x, original.y, original.z), *positions],
-                    max_blocks=self.limits.for_category("leaves")
+                    original,
+                    [(original.x, original.y, original.z), *positions],
+                    max_blocks=self.limits.for_category("leaves"),
                 )
         dimension_name = str(original.dimension.name)
         seed = (original.x, original.y, original.z)
