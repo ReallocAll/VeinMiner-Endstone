@@ -117,11 +117,14 @@ class VeinMinerPlugin(Plugin):
             if player.dimension.get_block_at(*seed).type != "minecraft:air":
                 return
             location = player.location
-            if max(
-                abs(location.block_x - seed[0]),
-                abs(location.block_y - seed[1]),
-                abs(location.block_z - seed[2]),
-            ) > 8:
+            if (
+                max(
+                    abs(location.block_x - seed[0]),
+                    abs(location.block_y - seed[1]),
+                    abs(location.block_z - seed[2]),
+                )
+                > 8
+            ):
                 return
             if not self._guard.refresh() or not self._audit.refresh():
                 return

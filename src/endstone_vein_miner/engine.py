@@ -16,7 +16,6 @@ def _new_item(item_id: str, count: int):
     return ItemStack(item_id, count)
 
 
-
 ENCHANTMENTS = {"minecraft:efficiency", "minecraft:fortune", "minecraft:silk_touch", "minecraft:unbreaking"}
 
 
@@ -34,6 +33,7 @@ def _enchant_levels(meta) -> dict[str, int] | None:
     if levels.get("minecraft:silk_touch") and levels.get("minecraft:fortune"):
         return None
     return levels
+
 
 def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger) -> int:
     dimension = player.dimension
