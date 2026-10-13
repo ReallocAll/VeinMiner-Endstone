@@ -13,7 +13,8 @@ def test_new_poplar_and_bedrock_azalea_ids():
         ident = f"minecraft:{color}_poplar_leaves"
         assert ident in LEAVES
         assert block_category(ident) == "leaves"
-        assert correct_tool(ident, "minecraft:air")
+        assert correct_tool(ident, "minecraft:diamond_axe")
+        assert not correct_tool(ident, "minecraft:air")
         rewards = [r for _ in range(500) for r in leaf_rewards(ident, Random(_))]
         assert all(r.item != f"minecraft:{color}_poplar_sapling" for r in rewards)
     assert "minecraft:azalea_leaves_flowered" in LEAVES

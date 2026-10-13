@@ -290,19 +290,37 @@ def test_drop_spawn_raising_after_entity_creation_does_not_duplicate_block(monke
     assert events == ["block_removed", "audit_success"]
 
 
-def test_barehand_leaf_mining_removes_leaves_without_dropping_leaf_blocks(monkeypatch):
+def test_axe_mines_leaves_with_normal_drops_but_bare_hand_does_not(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     events = []
     player, blocks, positions, drops = make_world(events)
-    player.inventory.item_in_main_hand = None
     for block in blocks.values():
         block.type = "minecraft:oak_leaves"
     guard = SimpleNamespace(can_break=lambda *args: True)
-    audit = SimpleNamespace(prepare=lambda *args: "row", finish=lambda *args, **kwargs: None)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
-    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, audit, logger) == 2
+    player.inventory.item_in_main_hand = None
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 0
+    assert not drops
+    player.inventory.item_in_main_hand = FakeTool()
+    player.inventory.item_in_main_hand.type = FakeType("minecraft:iron_axe")
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
     assert all(block.type == "minecraft:air" for block in blocks.values())
     assert not any(item == "minecraft:oak_leaves" for _, (item, count) in drops)
+
+
+def test_silk_touch_axe_returns_leaf_blocks(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    tool = player.inventory.item_in_main_hand
+    tool.type = FakeType("minecraft:diamond_axe")
+    tool.item_meta.has_enchants = True
+    tool.item_meta.enchants = {type("Enchant", (), {"id": "minecraft:silk_touch"})(): 1}
+    for block in blocks.values():
+        block.type = "minecraft:oak_leaves"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
+    assert drops == [("place", ("minecraft:oak_leaves", 1))] * 2
 
 
 def test_tree_canopy_clear_keeps_axe_durability(monkeypatch):

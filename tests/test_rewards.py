@@ -70,3 +70,18 @@ def test_bedrock_lit_redstone_ores_never_drop_unobtainable_lit_blocks():
         assert normal.item == "minecraft:redstone"
         assert 4 <= normal.count <= 5
         assert reward_for(block_id, rng, silk_touch=True) == Reward(silk_item, 1, 0)
+
+
+def test_fortune_axe_increases_leaf_sapling_stick_and_apple_chances():
+    from endstone_vein_miner.rewards import leaf_rewards
+
+    def sample(level):
+        rng = Random(1973)
+        items = [reward.item for _ in range(25000) for reward in leaf_rewards("minecraft:oak_leaves", rng, fortune=level)]
+        return {item: items.count(item) for item in ("minecraft:oak_sapling", "minecraft:stick", "minecraft:apple")}
+
+    basic = sample(0)
+    enhanced = sample(3)
+    assert enhanced["minecraft:oak_sapling"] > basic["minecraft:oak_sapling"]
+    assert enhanced["minecraft:stick"] > basic["minecraft:stick"]
+    assert enhanced["minecraft:apple"] > basic["minecraft:apple"]
