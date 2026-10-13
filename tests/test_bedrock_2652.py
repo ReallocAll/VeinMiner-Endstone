@@ -26,8 +26,13 @@ def test_simple_vegetation_covered_without_custom_crop_loot():
         ident = f"minecraft:{block}"
         assert ident in PLANTS
         assert correct_tool(ident, "minecraft:air")
-    assert block_category("minecraft:potatoes") is None
+    assert block_category("minecraft:potatoes") == "plants"
     assert plant_rewards("minecraft:potatoes", {}, Random(1)) is None
+    assert plant_rewards("minecraft:potatoes", {"growth": 0}, Random(1))[0].count == 1
+    assert 1 <= plant_rewards("minecraft:potatoes", {"growth": 7}, Random(1))[0].count <= 4
+    assert plant_rewards("minecraft:wheat", {"growth": 7}, Random(1))[0].item == "minecraft:wheat"
+    assert plant_rewards("minecraft:cocoa", {"age": 2}, Random(1))[0].count == 3
+    assert plant_rewards("minecraft:nether_wart", {"age": 3}, Random(1))[0].count >= 2
     assert plant_rewards("minecraft:reeds", {}, Random(1))[0].item == "minecraft:sugar_cane"
     assert plant_rewards("minecraft:shelf_mushroom", {"growth": 3}, Random(1))[0].count == 2
 
