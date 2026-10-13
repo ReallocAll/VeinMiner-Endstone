@@ -20,12 +20,17 @@ class Claim:
     members: frozenset[str]
     public_break: bool
 
+    def __post_init__(self) -> None:
+        first, second = self.pos1, self.pos2
+        object.__setattr__(self, "pos1", tuple(min(a, b) for a, b in zip(first, second, strict=True)))
+        object.__setattr__(self, "pos2", tuple(max(a, b) for a, b in zip(first, second, strict=True)))
+
     def contains(self, dimension: str, x: int, y: int, z: int) -> bool:
         return (
             self.dimension == dimension
-            and min(self.pos1[0], self.pos2[0]) <= x <= max(self.pos1[0], self.pos2[0])
-            and min(self.pos1[1], self.pos2[1]) <= y <= max(self.pos1[1], self.pos2[1])
-            and min(self.pos1[2], self.pos2[2]) <= z <= max(self.pos1[2], self.pos2[2])
+            and self.pos1[0] <= x <= self.pos2[0]
+            and self.pos1[1] <= y <= self.pos2[1]
+            and self.pos1[2] <= z <= self.pos2[2]
         )
 
 

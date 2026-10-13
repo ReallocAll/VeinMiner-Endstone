@@ -114,3 +114,13 @@ def test_dimension_index_reduces_unrelated_claim_scans(tmp_path, monkeypatch):
     assert not guard.can_break("Bob", False, "overworld", 2, 60, 2)
     assert calls == ["overworld", "overworld"]
     db.close()
+
+
+def test_reversed_territory_boundaries_still_protect_claim():
+    from endstone_vein_miner.protection import Claim
+
+    claim = Claim((20, 127, 20), (0, 0, 0), "overworld", "", frozenset({"Alice"}), False)
+    assert claim.pos1 == (0, 0, 0)
+    assert claim.pos2 == (20, 127, 20)
+    assert claim.contains("overworld", 10, 64, 10)
+    assert not claim.contains("nether", 10, 64, 10)

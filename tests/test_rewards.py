@@ -77,7 +77,11 @@ def test_fortune_axe_increases_leaf_sapling_stick_and_apple_chances():
 
     def sample(level):
         rng = Random(1973)
-        items = [reward.item for _ in range(25000) for reward in leaf_rewards("minecraft:oak_leaves", rng, fortune=level)]
+        items = [
+            reward.item
+            for _ in range(25000)
+            for reward in leaf_rewards("minecraft:oak_leaves", rng, fortune=level)
+        ]
         return {item: items.count(item) for item in ("minecraft:oak_sapling", "minecraft:stick", "minecraft:apple")}
 
     basic = sample(0)
