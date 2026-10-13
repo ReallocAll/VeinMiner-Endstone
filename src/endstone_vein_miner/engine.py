@@ -6,7 +6,7 @@ Native enchantment metadata is preserved; selected mining effects are simulated.
 from random import Random
 
 from .audit import format_states
-from .mining import LEAVES, PLANTS, correct_tool, ore_family
+from .mining import LEAVES, PLANTS, VERTICAL_PLANTS, correct_tool, ore_family
 from .rewards import Reward, leaf_rewards, plant_rewards, reward_for
 
 
@@ -77,6 +77,7 @@ def mine_extra(
 
     count = 0
     family = ore_family(block_id)
+    vertical_family = VERTICAL_PLANTS.get(block_id)
     rng = Random()
     for x, y, z in positions[:8]:
         live_tool = inventory.item_in_main_hand
@@ -93,7 +94,13 @@ def mine_extra(
         try:
             block = dimension.get_block_at(x, y, z)
             actual_id = str(block.type)
-            if (family is not None and ore_family(actual_id) != family) or (family is None and actual_id != block_id):
+            if family is not None:
+                matched = ore_family(actual_id) == family
+            elif vertical_family is not None:
+                matched = VERTICAL_PLANTS.get(actual_id) == vertical_family
+            else:
+                matched = actual_id == block_id
+            if not matched:
                 continue
             if not correct_tool(actual_id, tool_id) and not (canopy and actual_id.endswith("_leaves")):
                 continue

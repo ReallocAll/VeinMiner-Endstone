@@ -4,6 +4,7 @@ from collections import deque
 
 MAX_BLOCKS = 24
 MAX_RADIUS = 6
+MAX_VERTICAL_SCAN = 256
 
 ORE_TIERS = {
     "coal_ore": 0,
@@ -90,6 +91,16 @@ PLANTS = {
     "minecraft:wither_rose",
 }
 
+# Stacked plants should only connect along their own vertical column.
+# The top of a kelp plant has a different Bedrock block ID.
+VERTICAL_PLANTS = {
+    "minecraft:reeds": "reeds",
+    "minecraft:bamboo": "bamboo",
+    "minecraft:cactus": "cactus",
+    "minecraft:kelp": "kelp",
+    "minecraft:kelp_plant": "kelp",
+}
+
 TIERS = {"wooden": 0, "golden": 0, "stone": 1, "copper": 1, "iron": 2, "diamond": 3, "netherite": 4}
 FACES = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
 NEIGHBORS = FACES + tuple(
@@ -159,11 +170,48 @@ def should_scan(settings: dict[str, bool], sneaking: bool, block_id: str, item_i
     return correct_tool(block_id, item_id)
 
 
-def find_connected(seed, max_blocks: int | None = None) -> list[tuple[int, int, int]]:
-    """Find at most 23 additional same-type blocks, inside the seed's loaded chunk.
+def find_vertical_plant(seed, max_blocks: int) -> list[tuple[int, int, int]]:
+    """Harvest one column without selecting its lowest surviving plant block.
 
-    Read-only by design. The result never grants permission to remove a block.
+    If the player broke the lowest block, every segment above is eligible.
+    Otherwise retain the bottom segment, including when breaking from the top.
     """
+    dimension = seed.dimension
+    x, z = seed.x, seed.z
+    family = VERTICAL_PLANTS[str(seed.type)]
+    bottom = seed.y
+
+    for _ in range(MAX_VERTICAL_SCAN):
+        try:
+            below = dimension.get_block_at(x, bottom - 1, z)
+        except (ValueError, RuntimeError):
+            return []  # Unknown support: do not risk the root.
+        if below is None or VERTICAL_PLANTS.get(str(below.type)) != family:
+            break
+        bottom -= 1
+    else:
+        return []  # Never guess which segment is the root.
+
+    chosen = []
+    y = bottom
+    for _ in range(MAX_VERTICAL_SCAN):
+        y += 1
+        try:
+            block = dimension.get_block_at(x, y, z)
+        except (ValueError, RuntimeError):
+            break
+        if block is None or VERTICAL_PLANTS.get(str(block.type)) != family:
+            break
+        if y != seed.y:
+            chosen.append((x, y, z))
+        if len(chosen) >= max_blocks - 1:
+            break
+    # Remove from the top down so lower supporting segments are removed last.
+    return chosen[::-1]
+
+
+def find_connected(seed, max_blocks: int | None = None) -> list[tuple[int, int, int]]:
+    """Select up to max_blocks - 1 loaded targets, without mutating the world."""
     block_id = str(seed.type)
     category = block_category(block_id)
     if max_blocks is None:
@@ -176,6 +224,8 @@ def find_connected(seed, max_blocks: int | None = None) -> list[tuple[int, int, 
         from .tree import find_tree
 
         return find_tree(seed, max_blocks=max_blocks)
+    if block_id in VERTICAL_PLANTS:
+        return find_vertical_plant(seed, max_blocks)
     dimension = seed.dimension
     start = seed.x, seed.y, seed.z
     queue = deque([start])

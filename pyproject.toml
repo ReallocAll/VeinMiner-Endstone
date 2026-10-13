@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "endstone-vein-miner"
-version = "2.1.1"
+version = "2.1.2"
 description = "Chinese VeinMiner with safe per-player controls, Territory protection and optional enchantment support"
 readme = "README.md"
 requires-python = ">=3.12,<3.16"
