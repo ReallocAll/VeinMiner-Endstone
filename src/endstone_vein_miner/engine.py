@@ -69,7 +69,11 @@ def mine_extra(
     meta = tool.item_meta if not hand else None
     enchantments = _enchant_levels(meta) if meta is not None else {}
     durability = int(tool.type.max_durability) if meta is not None else 0
-    if meta is not None and durability < 0:
+    if meta is not None and durability <= 0 and (
+        tool_id == "minecraft:shears"
+        or tool_id.endswith(("_pickaxe", "_axe", "_hoe", "_shovel", "_sword"))
+    ):
+        # A real tool with missing durability metadata is unsafe to consume.
         return 0
 
     count = 0
