@@ -49,6 +49,8 @@ class SettingsStore:
     def set(self, player_id: str, key: str, value: bool) -> None:
         if key not in DEFAULT_SETTINGS or type(value) is not bool:
             raise ValueError("无效设置")
+        if self.get(player_id)[key] == value:
+            return
         updated = self._players.copy()
         state = self.get(player_id)
         state[key] = value
