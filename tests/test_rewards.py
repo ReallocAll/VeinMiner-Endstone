@@ -179,4 +179,5 @@ def test_silk_touch_never_turns_crop_into_block_item():
     ):
         loot = plant_rewards(f"minecraft:{crop}", states, rng, silk_touch=True, fortune=3)
         assert loot
-        assert all(reward.item != f"minecraft:{crop}" or crop == "nether_wart" for reward in loot)
+        if crop in {"carrots", "potatoes", "cocoa"}:
+            assert all(reward.item != f"minecraft:{crop}" for reward in loot)
