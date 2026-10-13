@@ -49,8 +49,9 @@ def test_gui_toggle_reopens_and_persists_without_chat(tmp_path, monkeypatch):
 
     gui.show_menu(plugin, player)
     assert len(player.forms[-1].buttons) == 6
-    assert player.forms[-1].content == "先开启总开关和对应类型。\n默认蹲下触发；树叶使用斧子。"
+    assert player.forms[-1].content == "先开启总开关和对应类型。\n默认蹲下；树叶：斧子自然掉落，剪刀掉叶块。"
     assert "已关闭" in player.forms[-1].buttons[0]
+    assert "树叶连锁（斧/剪刀）" in player.forms[-1].buttons[4]
     player.forms[-1].on_submit(player, 0)
     assert store.enabled("uuid-a")
     tasks.pop()()
