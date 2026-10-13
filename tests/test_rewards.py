@@ -124,9 +124,11 @@ def test_bedrock_berry_state_nether_wart_and_decorative_shear_loot():
     from endstone_vein_miner.rewards import plant_rewards
 
     rng = Random(7)
-    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 3}, rng) == ()
+    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 1}, rng) == ()
+    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 2}, rng)[0].count in (1, 2)
+    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 3}, rng)[0].count in (2, 3)
+    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 3}, rng, fortune=3)[0].count in range(2, 7)
     assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 7}, rng)[0].count in (2, 3)
-    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 7}, rng, fortune=3)[0].count in range(2, 7)
     assert plant_rewards("minecraft:sweet_berry_bush", {"age": 3}, rng) is None
     assert plant_rewards("minecraft:nether_wart", {"age": 0}, rng, fortune=3) == (
         Reward("minecraft:nether_wart", 1, 0),
@@ -135,6 +137,7 @@ def test_bedrock_berry_state_nether_wart_and_decorative_shear_loot():
         2 <= plant_rewards("minecraft:nether_wart", {"age": 3}, rng, fortune=3)[0].count <= 7 for _ in range(100)
     )
     assert plant_rewards("minecraft:short_grass", {}, rng, shears=True) == (Reward("minecraft:short_grass", 1, 0),)
+    assert all(reward.item != "minecraft:short_grass" for reward in plant_rewards("minecraft:short_grass", {}, rng, silk_touch=True))
     assert plant_rewards("minecraft:short_dry_grass", {}, rng) == ()
     assert plant_rewards("minecraft:short_dry_grass", {}, rng, silk_touch=True) == (
         Reward("minecraft:short_dry_grass", 1, 0),
