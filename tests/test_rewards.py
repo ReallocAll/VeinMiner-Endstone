@@ -137,7 +137,8 @@ def test_bedrock_berry_state_nether_wart_and_decorative_shear_loot():
         2 <= plant_rewards("minecraft:nether_wart", {"age": 3}, rng, fortune=3)[0].count <= 7 for _ in range(100)
     )
     assert plant_rewards("minecraft:short_grass", {}, rng, shears=True) == (Reward("minecraft:short_grass", 1, 0),)
-    assert all(reward.item != "minecraft:short_grass" for reward in plant_rewards("minecraft:short_grass", {}, rng, silk_touch=True))
+    grass_silk = plant_rewards("minecraft:short_grass", {}, rng, silk_touch=True)
+    assert all(reward.item != "minecraft:short_grass" for reward in grass_silk)
     assert plant_rewards("minecraft:short_dry_grass", {}, rng) == ()
     assert plant_rewards("minecraft:short_dry_grass", {}, rng, silk_touch=True) == (
         Reward("minecraft:short_dry_grass", 1, 0),
