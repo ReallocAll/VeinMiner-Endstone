@@ -110,11 +110,13 @@ def test_audit_failure_is_fail_closed(monkeypatch):
     assert all(block.type == "minecraft:iron_ore" for block in blocks.values())
 
 
-def test_enchanted_tool_is_not_processed(monkeypatch):
+def test_unsupported_enchanted_tool_is_not_processed(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     events = []
     player, blocks, positions, drops = make_world(events)
-    player.inventory.item_in_main_hand.item_meta.has_enchants = True
+    meta = player.inventory.item_in_main_hand.item_meta
+    meta.has_enchants = True
+    meta.enchants = {type("Enchantment", (), {"id": "minecraft:mending"})(): 1}
     guard = SimpleNamespace(can_break=lambda *args: True)
     audit = SimpleNamespace(prepare=lambda *args: "row", finish=lambda *args, **kwargs: None)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
