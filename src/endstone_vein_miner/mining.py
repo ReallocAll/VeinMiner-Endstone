@@ -64,7 +64,7 @@ def correct_tool(block_id: str, item_id: str) -> bool:
     if category is None or not item_id.startswith("minecraft:"):
         return False
     if category == "leaves":
-        return item_id == "minecraft:shears"
+        return item_id in {"minecraft:shears", "minecraft:air"}
     required = "pickaxe" if category == "ores" else "axe"
     prefix, separator, kind = item_id.removeprefix("minecraft:").rpartition("_")
     if not separator or kind != required:
@@ -95,6 +95,10 @@ def find_connected(seed) -> list[tuple[int, int, int]]:
     category = block_category(block_id)
     if category is None:
         return []
+    if category == "logs":
+        from .tree import find_tree
+
+        return find_tree(seed)
     dimension = seed.dimension
     start = seed.x, seed.y, seed.z
     queue = deque([start])
