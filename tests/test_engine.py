@@ -120,3 +120,55 @@ def test_enchanted_tool_is_not_processed(monkeypatch):
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
     assert engine.mine_extra(player, "minecraft:iron_ore", positions, guard, audit, logger) == 0
     assert not events and not drops
+
+def test_failed_tool_update_rolls_back_block_and_marks_audit_cancelled(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+    player.inventory.item_in_main_hand.set_item_meta = lambda meta: False
+
+    class Guard:
+        def can_break(self, *args):
+            return True
+
+    class Audit:
+        def prepare(self, *args):
+            events.append("audit_prepare")
+            return "row"
+
+        def finish(self, row, *, success):
+            events.append("audit_success" if success else "audit_cancel")
+
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    count = engine.mine_extra(player, "minecraft:iron_ore", positions[:1], Guard(), Audit(), logger)
+    assert count == 0
+    assert blocks[positions[0]].type == "minecraft:iron_ore"
+    assert events == ["audit_prepare", "block_removed", "audit_success", "audit_cancel"]
+    assert not drops
+
+
+def test_failed_audit_completion_never_spawns_rewards(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+
+    class Guard:
+        def can_break(self, *args):
+            return True
+
+    class Audit:
+        def prepare(self, *args):
+            events.append("audit_prepare")
+            return "row"
+
+        def finish(self, row, *, success):
+            if success:
+                raise OSError("database locked")
+            events.append("audit_cancel")
+
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    count = engine.mine_extra(player, "minecraft:iron_ore", positions[:1], Guard(), Audit(), logger)
+    assert count == 0
+    assert blocks[positions[0]].type == "minecraft:iron_ore"
+    assert events == ["audit_prepare", "block_removed", "audit_cancel"]
+    assert not drops
