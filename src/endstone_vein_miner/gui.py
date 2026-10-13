@@ -9,7 +9,7 @@ from .settings import SETTING_KEYS
 
 LABELS = (
     "连锁挖掘",
-    "蹲下触发",
+    "潜行触发",
     "矿石连锁",
     "树木连锁",
     "树叶连锁（斧/剪刀）",
@@ -22,7 +22,11 @@ def show_menu(plugin, player) -> None:
     values = plugin.settings.get(player_id)
     form = ActionForm(
         title="§l§6连锁挖掘",
-        content="先开启总开关和对应类型。\n默认蹲下；树叶：斧子自然掉落，剪刀掉叶块。",
+        content=(
+            "先开启总开关及所需连锁类型；默认潜行触发，可关闭。\n"
+            "树叶：斧子自然掉落、不耗耐久；剪刀掉落叶块。\n"
+            "植被：含甘蔗、竹子、仙人掌、海带和农作物；挖上层保留根部。"
+        ),
     )
     for key, label in zip(SETTING_KEYS, LABELS, strict=True):
         form.add_button(f"§f{label}\n{'§a已开启' if values[key] else '§c已关闭'}")

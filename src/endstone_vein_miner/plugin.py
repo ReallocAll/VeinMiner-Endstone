@@ -198,7 +198,7 @@ class VeinMinerPlugin(Plugin):
             state = self.settings.get(str(sender.unique_id))
             sender.send_message(
                 f"§e连锁: {'开' if state['enabled'] else '关'} | "
-                f"蹲下: {'开' if state['require_sneak'] else '关'} | "
+                f"潜行: {'开' if state['require_sneak'] else '关'} | "
                 f"矿石/树木/树叶/植被: "
                 f"{int(state['ores'])}/{int(state['logs'])}/{int(state['leaves'])}/{int(state['plants'])}"
             )
