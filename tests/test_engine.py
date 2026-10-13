@@ -322,11 +322,13 @@ def test_enchanted_axe_uses_natural_leaf_drops_without_durability(monkeypatch):
         type("Enchant", (), {"id": "minecraft:fortune"})(): 3,
         type("Enchant", (), {"id": "minecraft:unbreaking"})(): 3,
     }
+
     def forbidden_set_meta(meta):
         raise AssertionError("Leaf chaining must not modify an axe's metadata")
 
     tool.set_item_meta = forbidden_set_meta
     calls = []
+
     def natural_drop(block_id, rng, *, fortune=0):
         calls.append((block_id, fortune))
         return (engine.Reward("minecraft:oak_sapling", 1, 0),)
