@@ -1,6 +1,7 @@
 """Native Endstone entry point for the experimental, fail-closed VeinMiner fork."""
 
 import json
+import time
 from pathlib import Path
 
 from endstone import GameMode, Player
@@ -37,6 +38,7 @@ class VeinMinerPlugin(Plugin):
         self.settings.load()
         self._guard = TerritoryBreakGuard(self.data_folder.parent)
         self._audit = TianyanAudit(self.data_folder.parent)
+        self._last_scan: dict[str, float] = {}
         self._extra_enabled = False
         options_path = Path(self.data_folder) / "experimental.json"
         if options_path.exists():
@@ -56,6 +58,7 @@ class VeinMinerPlugin(Plugin):
 
     def on_disable(self) -> None:
         self._extra_enabled = False
+        self._last_scan.clear()
 
     @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
     def on_block_break(self, event: BlockBreakEvent) -> None:
@@ -75,7 +78,15 @@ class VeinMinerPlugin(Plugin):
             return
         if item.item_meta.has_enchants:
             return
-        positions = find_connected(original)
+        now = time.monotonic()
+        if now - self._last_scan.get(player_id, -100.0) < 0.12:
+            return
+        self._last_scan[player_id] = now
+        try:
+            positions = find_connected(original)
+        except (ValueError, RuntimeError) as exc:
+            self.logger.warning(f"连锁挖掘读取目标失败: {exc}")
+            return
         if not positions:
             return
         dimension_name = str(original.dimension.name)
@@ -106,6 +117,13 @@ class VeinMinerPlugin(Plugin):
         # A cancelled or unsuccessful original block break leaves the seed present.
         try:
             if player.dimension.get_block_at(*seed).type != "minecraft:air":
+                return
+            location = player.location
+            if max(
+                abs(location.block_x - seed[0]),
+                abs(location.block_y - seed[1]),
+                abs(location.block_z - seed[2]),
+            ) > 8:
                 return
             if not self._guard.refresh() or not self._audit.refresh():
                 return
