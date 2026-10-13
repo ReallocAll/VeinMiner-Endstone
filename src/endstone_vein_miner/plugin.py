@@ -1,9 +1,17 @@
-"""Minimal, fail-closed Endstone plugin entry point."""
+"""Native Endstone entry point for the experimental, fail-closed VeinMiner fork."""
 
-from endstone import Player
+import json
+from pathlib import Path
+
+from endstone import GameMode, Player
+from endstone.event import BlockBreakEvent, EventPriority, event_handler
 from endstone.plugin import Plugin
 
+from .audit import TianyanAudit
+from .engine import mine_extra
 from .gui import show_menu
+from .mining import find_connected, should_scan
+from .protection import TerritoryBreakGuard
 from .settings import SettingsStore
 
 
@@ -27,10 +35,87 @@ class VeinMinerPlugin(Plugin):
     def on_enable(self) -> None:
         self.settings = SettingsStore(self.data_folder / "players.json")
         self.settings.load()
-        self.logger.warning(
-            "连锁额外方块破坏已禁用：Endstone 0.11 没有经验证的原版破坏/掉落接口，"
-            "Territory 没有 Python 授权 API，Tianyan 没有公开写入 API。"
+        self._guard = TerritoryBreakGuard(self.data_folder.parent)
+        self._audit = TianyanAudit(self.data_folder.parent)
+        self._extra_enabled = False
+        options_path = Path(self.data_folder) / "experimental.json"
+        if options_path.exists():
+            try:
+                options = json.loads(options_path.read_text(encoding="utf-8"))
+                self._extra_enabled = (
+                    isinstance(options, dict) and options.get("experimental_extra_breaks") is True
+                )
+            except (OSError, ValueError) as exc:
+                self.logger.error(f"实验性设置加载失败，连锁破坏保持禁用: {exc}")
+        if self._extra_enabled:
+            self.logger.warning(
+                "实验性额外破坏已启用：仅支持无附魔工具和 Tianyan SQLite；"
+                "必须先在独立测试服验证原版结算与跨插件一致性。"
+            )
+        else:
+            self.logger.warning("额外连锁破坏仍禁用。仅实验性配置显式开启时才允许尝试。")
+        self.register_events(self)
+
+    def on_disable(self) -> None:
+        self._extra_enabled = False
+
+    @event_handler(priority=EventPriority.MONITOR, ignore_cancelled=True)
+    def on_block_break(self, event: BlockBreakEvent) -> None:
+        if not self._extra_enabled or event.is_cancelled:
+            return
+        player = event.player
+        if not player.is_valid or player.game_mode != GameMode.SURVIVAL:
+            return
+        player_id = str(player.unique_id)
+        values = self.settings.get(player_id)
+        original = event.block
+        block_id = str(original.type)
+        item = player.inventory.item_in_main_hand
+        if item is None:
+            return
+        if not should_scan(values, bool(player.is_sneaking), block_id, str(item.type)):
+            return
+        if item.item_meta.has_enchants:
+            return
+        positions = find_connected(original)
+        if not positions:
+            return
+        dimension_name = str(original.dimension.name)
+        seed = (original.x, original.y, original.z)
+        self.server.scheduler.run_task(
+            self,
+            lambda: self._finish_break(player, player_id, block_id, dimension_name, seed, positions),
+            delay=1,
         )
+
+    def _finish_break(
+        self,
+        player: Player,
+        player_id: str,
+        block_id: str,
+        dimension_name: str,
+        seed: tuple[int, int, int],
+        positions: list[tuple[int, int, int]],
+    ) -> None:
+        if not self._extra_enabled or not player.is_valid or player.game_mode != GameMode.SURVIVAL:
+            return
+        if str(player.dimension.name) != dimension_name:
+            return
+        values = self.settings.get(player_id)
+        tool = player.inventory.item_in_main_hand
+        if tool is None or not should_scan(values, bool(player.is_sneaking), block_id, str(tool.type)):
+            return
+        # A cancelled or unsuccessful original block break leaves the seed present.
+        try:
+            if player.dimension.get_block_at(*seed).type != "minecraft:air":
+                return
+            if not self._guard.refresh() or not self._audit.refresh():
+                return
+            count = mine_extra(player, block_id, positions, self._guard, self._audit, self.logger)
+            if count:
+                player.send_tip(f"§a连锁挖掘 §7| §f额外挖掘 §a{count} §f格")
+        except Exception as exc:
+            self.logger.error(f"连锁挖掘执行异常，已停止: {exc}")
 
     def on_command(self, sender, command, args: list[str]) -> bool:
         if len(args) > 1:
