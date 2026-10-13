@@ -58,3 +58,27 @@ def reward_for(block_id: str, rng: Random, *, silk_touch: bool = False, fortune:
         case "ancient_debris":
             return Reward("minecraft:ancient_debris", 1, 0)
     return None
+
+
+# Leaves can yield more than one independent item. Air/hand breaks never
+# grant a leaf block; silk-touch/shears are handled separately by the executor.
+def leaf_rewards(block_id: str, rng: Random) -> tuple[Reward, ...]:
+    if block_id not in LEAVES:
+        return ()
+    leaf = block_id.removeprefix("minecraft:").removesuffix("_leaves")
+    sapling = None
+    if leaf == "azalea":
+        sapling = "minecraft:azalea"
+    elif leaf == "flowering_azalea":
+        sapling = "minecraft:flowering_azalea"
+    elif leaf != "mangrove":
+        sapling = f"minecraft:{leaf}_sapling"
+
+    results = []
+    if sapling and rng.random() < (0.025 if leaf == "jungle" else 0.05):
+        results.append(Reward(sapling, 1, 0))
+    if rng.random() < 0.02:
+        results.append(Reward("minecraft:stick", rng.randint(1, 2), 0))
+    if leaf in {"oak", "dark_oak"} and rng.random() < 0.005:
+        results.append(Reward("minecraft:apple", 1, 0))
+    return tuple(results)
