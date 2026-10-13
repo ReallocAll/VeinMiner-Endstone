@@ -78,7 +78,9 @@ def show_admin_limit(plugin, player) -> None:
             target.send_tip("§c保存失败")
             return
         target.send_tip("§a已保存")
-        plugin.server.scheduler.run_task(plugin, lambda: show_menu(plugin, target) if target.is_valid else None, delay=1)
+        plugin.server.scheduler.run_task(
+            plugin, lambda: show_menu(plugin, target) if target.is_valid else None, delay=1
+        )
 
     form.on_submit = on_submit
     player.send_form(form)
