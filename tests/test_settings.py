@@ -38,6 +38,7 @@ def test_independent_flags_survive_restart(tmp_path):
         "ores": True,
         "logs": True,
         "leaves": False,
+        "plants": False,
     }
     assert restored.get("uuid-b")["leaves"]
     assert not restored.get("uuid-b")["enabled"]
