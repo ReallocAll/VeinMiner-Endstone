@@ -123,11 +123,7 @@ def find_connected(seed) -> list[tuple[int, int, int]]:
     offsets = NEIGHBORS if category == "ores" else FACES
     chunk_x, chunk_z = seed.x >> 4, seed.z >> 4
     loaded = getattr(dimension, "loaded_chunks", None)
-    loaded_chunks = (
-        {(chunk.x, chunk.z) for chunk in loaded}
-        if loaded is not None
-        else {(chunk_x, chunk_z)}
-    )
+    loaded_chunks = {(chunk.x, chunk.z) for chunk in loaded} if loaded is not None else {(chunk_x, chunk_z)}
     family = ore_family(block_id) if category == "ores" else None
 
     while queue and len(selected) < MAX_BLOCKS - 1:

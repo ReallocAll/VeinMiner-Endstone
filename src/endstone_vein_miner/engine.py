@@ -72,9 +72,7 @@ def mine_extra(
         try:
             block = dimension.get_block_at(x, y, z)
             actual_id = str(block.type)
-            if (family is not None and ore_family(actual_id) != family) or (
-                family is None and actual_id != block_id
-            ):
+            if (family is not None and ore_family(actual_id) != family) or (family is None and actual_id != block_id):
                 continue
             if not correct_tool(actual_id, tool_id) and not (canopy and actual_id.endswith("_leaves")):
                 continue
