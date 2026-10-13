@@ -118,11 +118,14 @@ class VeinMinerPlugin(Plugin):
                 if str(player.dimension.get_block_at(*seed).type) != "minecraft:air":
                     return
                 location = player.location
-                if max(
-                    abs(location.block_x - seed[0]),
-                    abs(location.block_y - seed[1]),
-                    abs(location.block_z - seed[2]),
-                ) > 8:
+                if (
+                    max(
+                        abs(location.block_x - seed[0]),
+                        abs(location.block_y - seed[1]),
+                        abs(location.block_z - seed[2]),
+                    )
+                    > 8
+                ):
                     return
                 if not self._guard.refresh() or not self._audit.refresh():
                     return
@@ -132,11 +135,9 @@ class VeinMinerPlugin(Plugin):
                 if index >= len(jobs):
                     return
                 block_id, positions, canopy = jobs[index]
-                batch = positions[offset:offset + 8]
+                batch = positions[offset : offset + 8]
                 offset += len(batch)
-                total += mine_extra(
-                    player, block_id, batch, self._guard, self._audit, self.logger, canopy=canopy
-                )
+                total += mine_extra(player, block_id, batch, self._guard, self._audit, self.logger, canopy=canopy)
                 if offset >= len(positions):
                     index += 1
                     offset = 0

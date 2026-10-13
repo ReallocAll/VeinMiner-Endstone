@@ -75,10 +75,12 @@ def test_canopy_only_removes_natural_leaves_below_chopped_logs():
 
 
 def test_tree_selection_respects_loaded_chunk_boundary():
-    world = World({
-        (15, 64, 2): "minecraft:oak_log",
-        (16, 64, 2): "minecraft:oak_log",
-    })
+    world = World(
+        {
+            (15, 64, 2): "minecraft:oak_log",
+            (16, 64, 2): "minecraft:oak_log",
+        }
+    )
     world.loaded_chunks = [SimpleNamespace(x=0, z=0)]
     assert (16, 64, 2) not in find_tree(seed(world, (15, 64, 2)))
     assert all(x < 16 for x, _, _ in world.reads)

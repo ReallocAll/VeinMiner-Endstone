@@ -95,19 +95,12 @@ def find_tree(seed) -> list[tuple[int, int, int]]:
                     candidate = read(neighbour)
                     if candidate is None:
                         continue
-                    if (
-                        str(candidate.type) == block_id
-                        and max(abs(neighbour[i] - source[i]) for i in range(3)) <= 3
-                    ):
+                    if str(candidate.type) == block_id and max(abs(neighbour[i] - source[i]) for i in range(3)) <= 3:
                         if neighbour not in logs:
                             logs.add(neighbour)
                             queue.append(neighbour)
                             found.append(neighbour)
-                    elif (
-                        depth < MAX_LEAF_BRIDGE
-                        and neighbour not in leaf_seen
-                        and is_natural_leaf(candidate, leaf_id)
-                    ):
+                    elif depth < MAX_LEAF_BRIDGE and neighbour not in leaf_seen and is_natural_leaf(candidate, leaf_id):
                         leaf_seen.add(neighbour)
                         pending.append((neighbour, depth + 1))
     return found
