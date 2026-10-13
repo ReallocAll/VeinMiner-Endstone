@@ -43,5 +43,7 @@ jobs:
               assert "endstone_vein_miner/plugin.py" in names
           print("Wheel metadata verified:", path)
           PY
+      - name: Resolve runtime dependencies
+        run: python -m pip install --dry-run dist/*.whl
       - name: Install wheel without runtime dependencies
         run: python -m pip install --no-deps dist/*.whl

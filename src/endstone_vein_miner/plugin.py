@@ -14,7 +14,7 @@ class VeinMinerPlugin(Plugin):
     commands = {
         "vm": {
             "description": "打开连锁挖掘设置",
-            "usages": ["/vm [action: string]"],
+            "usages": ["/vm [gui|on|off|reload]"],
             "aliases": ["veinminer"],
             "permissions": ["veinminer.command"],
         },
