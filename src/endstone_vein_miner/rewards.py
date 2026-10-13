@@ -96,8 +96,14 @@ def plant_rewards(block_id: str, states: dict[str, object], rng: Random) -> tupl
         return None
     crop = block_id.removeprefix("minecraft:")
     if crop in {
-        "wheat", "carrots", "potatoes", "beetroot", "nether_wart", "cocoa",
-        "sweet_berry_bush", "torchflower_crop",
+        "wheat",
+        "carrots",
+        "potatoes",
+        "beetroot",
+        "nether_wart",
+        "cocoa",
+        "sweet_berry_bush",
+        "torchflower_crop",
     }:
         key = "age" if crop in {"nether_wart", "cocoa"} else "growth"
         age = states.get(key)
