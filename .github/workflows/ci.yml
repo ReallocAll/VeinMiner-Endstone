@@ -47,3 +47,25 @@ jobs:
         run: python -m pip install --dry-run dist/*.whl
       - name: Install wheel without runtime dependencies
         run: python -m pip install --no-deps dist/*.whl
+
+      - name: Smoke-test actual Endstone Python bindings
+        run: |
+          python -m pip install --no-deps "endstone>=0.11,<0.12" "lazy-loader>=0.4"
+          python - <<'PY'
+          from endstone import Player
+          from endstone.form import ActionForm
+          from endstone.plugin import Plugin
+          from endstone_vein_miner.plugin import VeinMinerPlugin
+
+          assert issubclass(VeinMinerPlugin, Plugin)
+          assert VeinMinerPlugin.commands["vm"]["aliases"] == ["veinminer"]
+          assert hasattr(Player, "send_form")
+          assert hasattr(Player, "send_tip")
+          assert hasattr(Player, "perform_command")
+          assert hasattr(Plugin, "data_folder")
+          form = ActionForm(title="连锁挖掘", content="静态绑定验证")
+          form.add_button("开关")
+          form.on_submit = lambda player, index: None
+          assert len(form.controls) == 1
+          print("Endstone binding smoke test passed")
+          PY
