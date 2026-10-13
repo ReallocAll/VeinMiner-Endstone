@@ -117,7 +117,7 @@ def test_horizontal_bfs_connects_columns_overlapping_at_different_heights():
         **{(4, y, 2): cane for y in range(74, 77)},
     }
     found = find_connected(seed(Column(blocks), 71, cane))
-    assert {(3, 73, 2), (3, 72, 2), (4, 76, 2), (4, 75, 2)} <= set(found)
+    assert {(3, 74, 2), (3, 73, 2), (4, 76, 2), (4, 75, 2)} <= set(found)
     assert (2, 70, 2) not in found
     assert (3, 72, 2) not in found  # Preserve each neighbor's own root.
     assert (4, 74, 2) not in found
