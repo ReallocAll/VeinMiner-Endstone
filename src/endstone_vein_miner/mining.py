@@ -19,7 +19,13 @@ ORE_TIERS = {
     "nether_gold_ore": 0,
     "ancient_debris": 3,
 }
-ORE_TIERS.update({f"deepslate_{name}": tier for name, tier in tuple(ORE_TIERS.items()) if name.endswith("_ore") and not name.startswith("nether_")})
+ORE_TIERS.update(
+    {
+        f"deepslate_{name}": tier
+        for name, tier in tuple(ORE_TIERS.items())
+        if name.endswith("_ore") and not name.startswith("nether_")
+    }
+)
 WOOD_TYPES = ("oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak")
 LOGS = {f"minecraft:{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")}
 LOGS.update({f"minecraft:stripped_{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")})
