@@ -329,6 +329,7 @@ def test_silk_touch_axe_collects_leaves_and_consumes_durability(monkeypatch):
     assert drops == [("place", ("minecraft:oak_leaves", 1))] * 2
     assert tool.item_meta.damage == 6
 
+
 def test_shears_chain_intact_leaf_blocks_and_consume_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     player, blocks, positions, drops = make_world([])
