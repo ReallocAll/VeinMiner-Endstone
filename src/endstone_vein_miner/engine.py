@@ -6,6 +6,7 @@ BDS's native player-break and loot pipeline.
 
 from random import Random
 
+from .audit import format_states
 from .mining import correct_tool
 from .rewards import reward_for
 
@@ -73,7 +74,7 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
             if reward is None:
                 break
             previous = block.capture_state()
-            states = str(block.data.block_states)
+            states = format_states(block.data.block_states)
             uid = audit.prepare(str(player.name), str(dimension.name), (x, y, z), block_id, states)
         except Exception as exc:
             logger.warning(f"连锁挖掘预检失败，已停止: {exc}")

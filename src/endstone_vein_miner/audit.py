@@ -6,6 +6,7 @@ break must have an acknowledged pending row *before* a world write.
 """
 
 import json
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -26,6 +27,32 @@ COLUMNS = (
     "data",
     "status",
 )
+
+
+def format_states(states: dict[str, bool | int | str]) -> str:
+    """Return a command-compatible Bedrock block-state suffix for Tianyan rollback.
+
+    Tianyan's /tyback constructs 'setblock <coords> <block_id><data>' without
+    inserting whitespace before data. The leading space is intentional.
+    """
+    if not isinstance(states, dict):
+        raise ValueError("未知的方块状态类型")
+    if not states:
+        return ""
+    entries = []
+    for key, value in sorted(states.items()):
+        if not isinstance(key, str) or re.fullmatch(r"[a-z0-9_:]+", key) is None:
+            raise ValueError("未知的方块状态名称")
+        if type(value) is str and re.fullmatch(r"[a-z0-9_:-]+", value):
+            encoded = json.dumps(value, ensure_ascii=True)
+        elif type(value) is bool:
+            encoded = "true" if value else "false"
+        elif type(value) is int:
+            encoded = str(value)
+        else:
+            raise ValueError("未知的方块状态值")
+        entries.append(f'{json.dumps(key)}={encoded}')
+    return " [" + ",".join(entries) + "]"
 
 
 class TianyanAudit:

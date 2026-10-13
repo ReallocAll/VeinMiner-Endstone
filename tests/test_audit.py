@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from endstone_vein_miner.audit import COLUMNS, TianyanAudit
+from endstone_vein_miner.audit import COLUMNS, TianyanAudit, format_states
 
 
 def create_audit(tmp_path):
@@ -59,3 +59,17 @@ def test_tianyan_failed_updates_fail_closed(tmp_path):
     audit.finish(uid, success=False)
     with sqlite3.connect(audit.db_path) as db:
         assert db.execute("SELECT status FROM LOGDATA WHERE uuid=?", (uid,)).fetchone() == ("canceled",)
+
+
+def test_tianyan_state_suffix_is_bedrock_setblock_compatible():
+    assert format_states({}) == ""
+    assert format_states({"pillar_axis": "x"}) == ' ["pillar_axis"="x"]'
+    assert format_states({"upside_down_bit": True, "facing_direction": 2}) == (
+        ' ["facing_direction"=2,"upside_down_bit"=true]'
+    )
+    with pytest.raises(ValueError):
+        format_states({"pillar_axis": "x\" /kill @a"})
+    with pytest.raises(ValueError):
+        format_states({"invalid key": 3})
+    with pytest.raises(ValueError):
+        format_states({"foo": [1, 2]})
