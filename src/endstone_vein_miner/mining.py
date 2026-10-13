@@ -146,9 +146,8 @@ def correct_tool(block_id: str, item_id: str) -> bool:
         prefix, separator, kind = item_id.removeprefix("minecraft:").rpartition("_")
         return bool(separator and kind == "axe" and prefix in TIERS)
     if category == "plants":
-        return (
-            item_id == "minecraft:air" or item_id == "minecraft:shears" or item_id.endswith(("_axe", "_hoe", "_sword"))
-        )
+        # Vanilla plants are breakable with any held item, including bare hands.
+        return True
     required = "pickaxe" if category == "ores" else "axe"
     prefix, separator, kind = item_id.removeprefix("minecraft:").rpartition("_")
     if not separator or kind != required:
