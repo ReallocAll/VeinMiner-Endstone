@@ -43,6 +43,10 @@ jobs:
               metadata, = (p for p in names if p.endswith(".dist-info/METADATA"))
               assert "vein-miner = endstone_vein_miner.plugin:VeinMinerPlugin" in wheel.read(entry).decode()
               parsed = Parser().parsestr(wheel.read(metadata).decode())
+              import tomllib
+              with open("pyproject.toml", "rb") as project_file:
+                  expected_version = tomllib.load(project_file)["project"]["version"]
+              assert parsed["Version"] == expected_version, (parsed["Version"], expected_version)
               assert set(parsed["Requires-Python"].replace(" ", "").split(",")) == {">=3.12", "<3.16"}
               assert "endstone_vein_miner/plugin.py" in names
           print("Wheel metadata verified:", path)

@@ -32,8 +32,8 @@
 
 ## 正式版本
 
-- [v2.0.3+server.10 — GitHub Release](https://github.com/ReallocAll/VeinMiner-Endstone/releases/tag/v2.0.3%2Bserver.10)
-- 将 Release 中的 `.whl` 放到服务器 `plugins/` 目录，删除旧版 VeinMiner Wheel 后重启 Endstone。
+- [最新稳定版本](https://github.com/ReallocAll/VeinMiner-Endstone/releases/latest)
+- 从 Release 下载 `.whl`，放到服务器 `plugins/` 目录，删除旧版 VeinMiner Wheel 后重启 Endstone。
 
 ## 验证状态
 

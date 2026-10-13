@@ -1,15 +1,22 @@
 # Changelog
 
-## 2.0.3+server.10 — Chinese server specialization
+基于 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)；正式插件版本采用 `MAJOR.MINOR.PATCH`，Tag 为 `vX.Y.Z`。
 
-- Added UUID-keyed Chinese GUI settings for mining, trees, leaves, plants and optional crouching.
-- Added an administrator-only GUI for persisted total block caps (default / 24 / 64 / 128 / 256).
-- Enabled bounded extra mining with per-block Territory checks, read-only chunk discovery and at most eight extra removals per tick.
-- Added mixed stone/deepslate ore matching, giant-tree diagonal branches, natural-leaf bridges and selected Bedrock 26.52 vegetation.
-- Leaf chains now require an axe. Normal leaves yield probabilistic saplings, sticks or apples; Fortune adjusts chances and Silk Touch yields leaf blocks. Bare hands and shears no longer activate leaf chains.
-- Improved Territory hot-path checks with per-dimension snapshots and pre-normalized claim bounds. Dynamic claim updates are still refreshed before each mining batch.
-- Handled unrelated enchantments without disabling chains and added guarded Fortune, Silk Touch, Unbreaking and held-tool Mending calculations.
-- Removed the runtime dependency on Tianyan; extra blocks are not written to Tianyan's audit log.
-- Added Python 3.12–3.15 CI and independent BDS startup verification through bds-test-lab only.
+## [Unreleased]
 
-Known limitations: exact native Bedrock drops for all exotic blocks, multi-slot Mending XP allocation, mobile-client mining and live claim-boundary behavior have not been end-to-end verified.
+## [2.1.0] - 2026-10-14
+
+### Changed
+- 在 `/vm` 中文菜单中显示两行简洁使用说明。
+- 统一使用标准语义化版本号与 `vX.Y.Z` 标签，移除 `+server.x` 本地版本后缀。
+- 使用版本校验、测试、Wheel 构建和 SHA256 校验文件发布正式 GitHub Release。
+
+### Included
+- 支持矿物、树木、树叶和植被连锁，玩家独立开关与管理员单次连锁上限。
+- 树叶连锁需使用斧子；支持时运和精准采集的对应掉落。
+- Territory 逐块权限检查与有界批次执行；保留附魔工具兼容，不写入 Tianyan 日志。
+
+## [2.0.3+server.10] - 2026-10-14
+
+- 历史 Fork 发行版本，保留原始 GitHub Release，不再延续 `+server.x` 编号。
+- 完成首轮中文界面、26.52 方块覆盖、领地保护及附魔兼容。

@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Verify and publish
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'chore: release v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Validate version and release notes
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          VERSION="$(python - <<'PY'
+          import tomllib
+          with open("pyproject.toml", "rb") as source:
+              print(tomllib.load(source)["project"]["version"])
+          PY
+          )"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "::error::Expected a standard X.Y.Z version"; exit 1;
+          }
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            test "$(git log -1 --pretty=%s)" = "chore: release v$VERSION"
+          fi
+          grep -F "## [$VERSION]" CHANGELOG.md
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release v$VERSION already exists"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Install test and packaging tools
+        run: python -m pip install "pytest>=8,<10" "ruff>=0.15,<1" "build>=1.3,<2"
+
+      - name: Lint, formatting, unit tests
+        run: |
+          ruff check src tests
+          ruff format --check src tests
+          PYTHONPATH=src python -m pytest -q
+
+      - name: Build and validate Wheel
+        shell: bash
+        run: |
+          python -m build --wheel
+          python - <<'PY'
+          from email.parser import Parser
+          from pathlib import Path
+          from zipfile import ZipFile
+          import tomllib
+
+          with open("pyproject.toml", "rb") as source:
+              version = tomllib.load(source)["project"]["version"]
+          wheels = list(Path("dist").glob("*.whl"))
+          assert len(wheels) == 1, wheels
+          wheel = wheels[0]
+          assert wheel.name == f"endstone_vein_miner-{version}-py3-none-any.whl"
+          with ZipFile(wheel) as archive:
+              assert archive.testzip() is None
+              meta_path, = (n for n in archive.namelist() if n.endswith(".dist-info/METADATA"))
+              entry_path, = (n for n in archive.namelist() if n.endswith(".dist-info/entry_points.txt"))
+              info = Parser().parsestr(archive.read(meta_path).decode())
+              assert info["Version"] == version
+              assert info["Name"] == "endstone-vein-miner"
+              assert "vein-miner = endstone_vein_miner.plugin:VeinMinerPlugin" in archive.read(entry_path).decode()
+          print("Validated release Wheel:", wheel)
+          PY
+          (cd dist && sha256sum *.whl > SHA256SUMS)
+
+      - name: Create tag and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          if git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
+            test "$(git rev-list -n 1 "$TAG")" = "$GITHUB_SHA" || {
+              echo "::error::Tag $TAG refers to a different commit"; exit 1;
+            }
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
+          VERSION="$VERSION" python - <<'PY'
+          import os
+          from pathlib import Path
+
+          text = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          start = text.index(f"## [{os.environ['VERSION']}]")
+          start = text.index("\n", start) + 1
+          end = text.find("\n## [", start)
+          notes = text[start:] if end == -1 else text[start:end]
+          assert notes.strip()
+          Path("release-notes.md").write_text(notes.strip() + "\n", encoding="utf-8")
+          PY
+          gh release create "$TAG" dist/*.whl dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "$TAG" --notes-file release-notes.md --latest
