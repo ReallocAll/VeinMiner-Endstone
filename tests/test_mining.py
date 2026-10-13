@@ -55,6 +55,10 @@ def test_tool_material_tiers_and_strict_allowlist():
     assert not correct_tool("minecraft:oak_log", "minecraft:diamond_pickaxe")
     assert correct_tool("minecraft:oak_log", "minecraft:wooden_axe")
     assert correct_tool("minecraft:oak_leaves", "minecraft:iron_axe")
+    assert all(
+        correct_tool("minecraft:oak_leaves", f"minecraft:{material}_axe")
+        for material in ("wooden", "golden", "stone", "copper", "iron", "diamond", "netherite")
+    )
     assert correct_tool("minecraft:oak_leaves", "minecraft:wooden_axe")
     assert correct_tool("minecraft:oak_leaves", "minecraft:shears")
     assert not correct_tool("minecraft:oak_leaves", "minecraft:air")

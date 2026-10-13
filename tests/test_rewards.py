@@ -72,7 +72,7 @@ def test_bedrock_lit_redstone_ores_never_drop_unobtainable_lit_blocks():
         assert reward_for(block_id, rng, silk_touch=True) == Reward(silk_item, 1, 0)
 
 
-def test_fortune_axe_increases_leaf_sapling_stick_and_apple_chances():
+def test_leaf_drop_helper_supports_fortune_chances_independently_of_axe_behavior():
     from endstone_vein_miner.rewards import leaf_rewards
 
     def sample(level):
