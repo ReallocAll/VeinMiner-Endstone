@@ -1,8 +1,7 @@
-"""Small main-thread-only executor for carefully constrained extra block removals.
+"""Main-thread experimental executor with per-block Territory and Tianyan checks.
 
-Only unenchanted tools are handled while proper native player-break and loot
-interfaces remain unavailable. Every target is checked against Territory and
-pre-logged in Tianyan. No synthetic BlockBreakEvent or privileged command is used.
+This is deliberately limited to unenchanted tools. It is not a replacement for
+BDS's native player-break and loot pipeline.
 """
 
 from random import Random
@@ -30,10 +29,10 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
     durability = int(tool.type.max_durability)
     if durability <= 0:
         return 0
+
     count = 0
     rng = Random()
     for x, y, z in positions:
-        # Do not continue once a later callback has changed the player's equipment.
         live_tool = inventory.item_in_main_hand
         if live_tool is None or live_tool != tool:
             break
@@ -41,6 +40,7 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
             break
         if not guard.can_break(str(player.name), bool(player.is_op), str(dimension.name), x, y, z):
             continue
+
         try:
             block = dimension.get_block_at(x, y, z)
             if block.type != block_id:
@@ -54,33 +54,52 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
         except Exception as exc:
             logger.warning(f"连锁挖掘预检失败，已停止: {exc}")
             break
+
+        old_damage = meta.damage
+        item_changed = False
         try:
             block.set_type("minecraft:air", apply_physics=False)
             if block.type != "minecraft:air":
                 raise RuntimeError("方块未被移除")
             audit.finish(uid, success=True)
-            dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
-            if reward.experience:
-                player.give_exp(reward.experience)
+
+            # Settle tool wear before spawning drops or granting experience so a
+            # failed inventory update can be rolled back without duplicating rewards.
             if not meta.is_unbreakable:
-                meta.damage += 1
+                meta.damage = old_damage + 1
                 if meta.damage >= durability:
                     inventory.item_in_main_hand = None
-                    count += 1
-                    break
-                if not tool.set_item_meta(meta):
-                    raise RuntimeError("无法更新工具耐久")
-                inventory.item_in_main_hand = tool
-            count += 1
+                else:
+                    if not tool.set_item_meta(meta):
+                        raise RuntimeError("无法更新工具耐久")
+                    inventory.item_in_main_hand = tool
+                item_changed = True
+
+            dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
         except Exception as exc:
-            # Best-effort reversal is preferable to silently losing an item or unlogged block.
             try:
-                if block.type == "minecraft:air":
-                    if not previous.update(force=True, apply_physics=False):
-                        logger.error(f"连锁挖掘回滚失败 ({x},{y},{z})")
+                if block.type == "minecraft:air" and not previous.update(force=True, apply_physics=False):
+                    logger.error(f"连锁挖掘回滚失败 ({x},{y},{z})")
+                if item_changed:
+                    meta.damage = old_damage
+                    tool.set_item_meta(meta)
+                    inventory.item_in_main_hand = tool
                 audit.finish(uid, success=False)
             except Exception as rollback_exc:
                 logger.error(f"连锁挖掘回滚/审计失败 ({x},{y},{z}): {rollback_exc}")
             logger.error(f"连锁挖掘执行失败，已停止: {exc}")
+            break
+
+        # The drop has already been spawned and the block broken. An XP error
+        # cannot safely be undone without duping the drop or block.
+        if reward.experience:
+            try:
+                player.give_exp(reward.experience)
+            except Exception as exc:
+                logger.error(f"连锁挖掘经验发放失败 ({x},{y},{z}): {exc}")
+                count += 1
+                break
+        count += 1
+        if inventory.item_in_main_hand is None:
             break
     return count
