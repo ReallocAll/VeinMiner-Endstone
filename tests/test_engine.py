@@ -173,3 +173,21 @@ def test_failed_audit_completion_never_spawns_rewards(monkeypatch):
     assert blocks[positions[0]].type == "minecraft:iron_ore"
     assert events == ["audit_prepare", "block_removed", "audit_cancel"]
     assert not drops
+
+
+def test_supported_enchantment_metadata_and_unsupported_fails_closed():
+    from endstone_vein_miner.engine import _enchant_levels
+
+    class Enchantment:
+        def __init__(self, identifier):
+            self.id = identifier
+
+    meta = SimpleNamespace(
+        has_enchants=True,
+        enchants={Enchantment("minecraft:fortune"): 3, Enchantment("minecraft:unbreaking"): 2},
+    )
+    assert _enchant_levels(meta) == {"minecraft:fortune": 3, "minecraft:unbreaking": 2}
+    meta.enchants[Enchantment("minecraft:mending")] = 1
+    assert _enchant_levels(meta) is None
+    meta.enchants = {Enchantment("minecraft:fortune"): 5}
+    assert _enchant_levels(meta) is None

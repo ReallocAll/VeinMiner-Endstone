@@ -24,3 +24,17 @@ def test_random_drops_stay_within_vanilla_ranges():
         assert 4 <= lapis.count <= 9 and 2 <= lapis.experience <= 5
         assert 2 <= copper.count <= 5
         assert 4 <= redstone.count <= 5 and 1 <= redstone.experience <= 5
+
+
+def test_silk_touch_and_fortune_resource_drops():
+    rng = Random(14)
+    assert reward_for("minecraft:diamond_ore", rng, silk_touch=True) == Reward("minecraft:diamond_ore", 1, 0)
+    assert reward_for("minecraft:deepslate_redstone_ore", rng, silk_touch=True) == Reward(
+        "minecraft:deepslate_redstone_ore", 1, 0
+    )
+    assert reward_for("minecraft:diamond_ore", rng, silk_touch=True, fortune=1) is None
+    for level, max_count in ((1, 2), (2, 3), (3, 4)):
+        for _ in range(60):
+            assert 1 <= reward_for("minecraft:diamond_ore", rng, fortune=level).count <= max_count
+            assert 4 <= reward_for("minecraft:redstone_ore", rng, fortune=level).count <= 5 + level
+            assert 2 <= reward_for("minecraft:copper_ore", rng, fortune=level).count <= 5 * max_count

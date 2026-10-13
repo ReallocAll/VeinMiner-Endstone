@@ -16,6 +16,25 @@ def _new_item(item_id: str, count: int):
     return ItemStack(item_id, count)
 
 
+
+ENCHANTMENTS = {"minecraft:efficiency", "minecraft:fortune", "minecraft:silk_touch", "minecraft:unbreaking"}
+
+
+def _enchant_levels(meta) -> dict[str, int] | None:
+    if not meta.has_enchants:
+        return {}
+    levels = {}
+    for enchantment, level in meta.enchants.items():
+        name = str(enchantment.id)
+        if name not in ENCHANTMENTS or type(level) is not int or level < 1:
+            return None
+        if level > (1 if name == "minecraft:silk_touch" else 3 if name != "minecraft:efficiency" else 5):
+            return None
+        levels[name] = level
+    if levels.get("minecraft:silk_touch") and levels.get("minecraft:fortune"):
+        return None
+    return levels
+
 def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger) -> int:
     dimension = player.dimension
     inventory = player.inventory
@@ -23,8 +42,8 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
     if tool is None or not correct_tool(block_id, str(tool.type)):
         return 0
     meta = tool.item_meta
-    if meta.has_enchants:
-        # Fortune, Silk Touch, Unbreaking and other enchantments need exact vanilla semantics.
+    enchantments = _enchant_levels(meta)
+    if enchantments is None:
         return 0
     durability = int(tool.type.max_durability)
     if durability <= 0:
@@ -32,7 +51,7 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
 
     count = 0
     rng = Random()
-    for x, y, z in positions:
+    for x, y, z in positions[:23]:
         live_tool = inventory.item_in_main_hand
         if live_tool is None or live_tool != tool:
             break
@@ -45,7 +64,12 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
             block = dimension.get_block_at(x, y, z)
             if block.type != block_id:
                 continue
-            reward = reward_for(block_id, rng)
+            reward = reward_for(
+                block_id,
+                rng,
+                silk_touch=bool(enchantments.get("minecraft:silk_touch")),
+                fortune=enchantments.get("minecraft:fortune", 0),
+            )
             if reward is None:
                 break
             previous = block.capture_state()
@@ -65,7 +89,7 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
 
             # Settle tool wear before spawning drops or granting experience so a
             # failed inventory update can be rolled back without duplicating rewards.
-            if not meta.is_unbreakable:
+            if not meta.is_unbreakable and rng.randrange(enchantments.get("minecraft:unbreaking", 0) + 1) == 0:
                 meta.damage = old_damage + 1
                 if meta.damage >= durability:
                     inventory.item_in_main_hand = None

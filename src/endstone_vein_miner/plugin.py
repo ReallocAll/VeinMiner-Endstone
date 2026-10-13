@@ -76,8 +76,6 @@ class VeinMinerPlugin(Plugin):
             return
         if not should_scan(values, bool(player.is_sneaking), block_id, str(item.type)):
             return
-        if item.item_meta.has_enchants:
-            return
         now = time.monotonic()
         if now - self._last_scan.get(player_id, -100.0) < 0.12:
             return
