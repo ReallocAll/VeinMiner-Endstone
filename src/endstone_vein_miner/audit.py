@@ -62,69 +62,82 @@ class TianyanAudit:
         self.config_path = root / "config.json"
         self.healthy = False
         self.error: str | None = None
+        self._db: sqlite3.Connection | None = None
+        self._db_identity: tuple[int, int] | None = None
+
+    def close(self) -> None:
+        self.healthy = False
+        if self._db is not None:
+            try:
+                self._db.close()
+            finally:
+                self._db = None
+                self._db_identity = None
 
     def refresh(self) -> bool:
         self.healthy = False
-        if not self.db_path.is_file() or not self.config_path.is_file():
-            self.error = "Tianyan 数据库或配置不存在"
-            return False
         try:
+            if not self.db_path.is_file() or not self.config_path.is_file():
+                raise ValueError("Tianyan 数据库或配置不存在")
             config = json.loads(self.config_path.read_text(encoding="utf-8"))
             if not isinstance(config, dict) or config.get("database_type") != "sqlite":
                 raise ValueError("Tianyan 未启用 SQLite 后端")
             if config.get("log_block_break") is not True:
                 raise ValueError("Tianyan 方块破坏日志功能已关闭")
-            db = sqlite3.connect(self.db_path, timeout=0.05)
-            try:
-                columns = tuple(row[1] for row in db.execute("PRAGMA table_info(LOGDATA)"))
-                if columns != COLUMNS:
-                    raise ValueError("Tianyan LOGDATA 数据库结构不兼容")
-            finally:
-                db.close()
+
+            stat = self.db_path.stat()
+            identity = (stat.st_dev, stat.st_ino)
+            if self._db is None or self._db_identity != identity:
+                self.close()
+                # mode=rw must not create a missing Tianyan database.
+                self._db = sqlite3.connect(self.db_path.resolve().as_uri() + "?mode=rw", uri=True, timeout=0.05)
+                self._db_identity = identity
+            columns = tuple(row[1] for row in self._db.execute("PRAGMA table_info(LOGDATA)"))
+            if columns != COLUMNS:
+                raise ValueError("Tianyan LOGDATA 数据库结构不兼容")
         except (OSError, ValueError, sqlite3.Error) as exc:
             self.error = str(exc)
+            self.close()
             return False
         self.error = None
         self.healthy = True
         return True
 
-    def prepare(self, player: str, dimension: str, pos: tuple[int, int, int], block_id: str, states: str) -> str:
-        if not self.healthy:
+    def _connection(self) -> sqlite3.Connection:
+        if not self.healthy or self._db is None:
             raise RuntimeError("Tianyan 审计未就绪")
+        return self._db
+
+    def prepare(self, player: str, dimension: str, pos: tuple[int, int, int], block_id: str, states: str) -> str:
+        db = self._connection()
         uid = str(uuid4())
-        db = sqlite3.connect(self.db_path, timeout=0.05)
-        try:
-            with db:
-                db.execute(
-                    "INSERT INTO LOGDATA (uuid,id,name,pos_x,pos_y,pos_z,world,obj_id,obj_name,"
-                    "time,type,data,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (
-                        uid,
-                        "minecraft:player",
-                        player,
-                        *pos,
-                        dimension,
-                        block_id,
-                        "",
-                        int(time.time()),
-                        "block_break",
-                        states,
-                        "veinminer_pending",
-                    ),
-                )
-        finally:
-            db.close()
+        # Each successful return means that the pending record has committed.
+        with db:
+            db.execute(
+                "INSERT INTO LOGDATA (uuid,id,name,pos_x,pos_y,pos_z,world,obj_id,obj_name,"
+                "time,type,data,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uid,
+                    "minecraft:player",
+                    player,
+                    *pos,
+                    dimension,
+                    block_id,
+                    "",
+                    int(time.time()),
+                    "block_break",
+                    states,
+                    "veinminer_pending",
+                ),
+            )
         return uid
 
     def finish(self, uid: str, *, success: bool) -> None:
-        if not self.healthy:
-            raise RuntimeError("Tianyan 审计未就绪")
+        db = self._connection()
         status = "" if success else "canceled"
-        db = sqlite3.connect(self.db_path, timeout=0.05)
-        try:
-            with db:
-                updated = db.execute("UPDATE LOGDATA SET status=? WHERE uuid=?", (status, uid))
-                if updated.rowcount != 1:
-                    raise RuntimeError("Tianyan 审计记录消失")
-        finally:
-            db.close()
+        # Remain separately committed so an engine rollback can mark one block
+        # canceled without changing any other block's audit row.
+        with db:
+            updated = db.execute("UPDATE LOGDATA SET status=? WHERE uuid=?", (status, uid))
+            if updated.rowcount != 1:
+                raise RuntimeError("Tianyan 审计记录消失")
