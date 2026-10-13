@@ -100,7 +100,6 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
                     inventory.item_in_main_hand = tool
                 item_changed = True
 
-            dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
         except Exception as exc:
             try:
                 if block.type == "minecraft:air" and not previous.update(force=True, apply_physics=False):
@@ -113,6 +112,16 @@ def mine_extra(player, block_id: str, positions: list[tuple[int, int, int]], gua
             except Exception as rollback_exc:
                 logger.error(f"连锁挖掘回滚/审计失败 ({x},{y},{z}): {rollback_exc}")
             logger.error(f"连锁挖掘执行失败，已停止: {exc}")
+            break
+
+        # Once an item spawn is attempted, the call may raise *after* creating
+        # an entity. Do not restore the block in that ambiguous case: it could
+        # duplicate both the block and spawned reward.
+        try:
+            dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
+        except Exception as exc:
+            logger.error(f"连锁挖掘掉落生成状态不明，停止且不回滚 ({x},{y},{z}): {exc}")
+            count += 1
             break
 
         # The drop has already been spawned and the block broken. An XP error
