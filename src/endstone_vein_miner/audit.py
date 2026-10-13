@@ -45,10 +45,13 @@ class TianyanAudit:
             config = json.loads(self.config_path.read_text(encoding="utf-8"))
             if not isinstance(config, dict) or config.get("database_type") != "sqlite":
                 raise ValueError("Tianyan 未启用 SQLite 后端")
-            with sqlite3.connect(self.db_path, timeout=0.25) as db:
+            db = sqlite3.connect(self.db_path, timeout=0.05)
+            try:
                 columns = tuple(row[1] for row in db.execute("PRAGMA table_info(LOGDATA)"))
                 if columns != COLUMNS:
                     raise ValueError("Tianyan LOGDATA 数据库结构不兼容")
+            finally:
+                db.close()
         except (OSError, ValueError, sqlite3.Error) as exc:
             self.error = str(exc)
             return False
@@ -60,10 +63,12 @@ class TianyanAudit:
         if not self.healthy:
             raise RuntimeError("Tianyan 审计未就绪")
         uid = str(uuid4())
-        with sqlite3.connect(self.db_path, timeout=0.25) as db:
-            db.execute(
-                "INSERT INTO LOGDATA (uuid,id,name,pos_x,pos_y,pos_z,world,obj_id,obj_name,"
-                "time,type,data,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        db = sqlite3.connect(self.db_path, timeout=0.05)
+        try:
+            with db:
+                db.execute(
+                    "INSERT INTO LOGDATA (uuid,id,name,pos_x,pos_y,pos_z,world,obj_id,obj_name,"
+                    "time,type,data,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     uid,
                     "minecraft:player",
@@ -77,14 +82,20 @@ class TianyanAudit:
                     states,
                     "veinminer_pending",
                 ),
-            )
+                )
+        finally:
+            db.close()
         return uid
 
     def finish(self, uid: str, *, success: bool) -> None:
         if not self.healthy:
             raise RuntimeError("Tianyan 审计未就绪")
         status = "" if success else "canceled"
-        with sqlite3.connect(self.db_path, timeout=0.25) as db:
-            updated = db.execute("UPDATE LOGDATA SET status=? WHERE uuid=?", (status, uid))
-            if updated.rowcount != 1:
-                raise RuntimeError("Tianyan 审计记录消失")
+        db = sqlite3.connect(self.db_path, timeout=0.05)
+        try:
+            with db:
+                updated = db.execute("UPDATE LOGDATA SET status=? WHERE uuid=?", (status, uid))
+                if updated.rowcount != 1:
+                    raise RuntimeError("Tianyan 审计记录消失")
+        finally:
+            db.close()

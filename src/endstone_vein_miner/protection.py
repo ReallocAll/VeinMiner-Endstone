@@ -72,11 +72,14 @@ class TerritoryBreakGuard:
             if not isinstance(config, dict) or type(config.get("allow_op_as_member")) is not bool:
                 raise ValueError("Territory allow_op_as_member 配置异常")
             uri = f"file:{self.db_path.resolve().as_posix()}?mode=ro"
-            with sqlite3.connect(uri, uri=True, timeout=0.25) as db:
+            db = sqlite3.connect(uri, uri=True, timeout=0.05)
+            try:
                 rows = db.execute(
                     "SELECT pos1_x,pos1_y,pos1_z,pos2_x,pos2_y,pos2_z,"
                     "owner,manager,member,dim,father_tty,if_break FROM territories"
                 ).fetchall()
+            finally:
+                db.close()
             claims = []
             for row in rows:
                 if row[11] not in (0, 1, "0", "1"):
