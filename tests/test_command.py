@@ -32,6 +32,7 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     class Plugin:
         pass
 
+    endstone.GameMode = SimpleNamespace(SURVIVAL=0)
     endstone.Player = Player
     plugin_module.Plugin = Plugin
     gui_module = types.ModuleType("endstone_vein_miner.gui")
@@ -39,6 +40,14 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "endstone_vein_miner.gui", gui_module)
     monkeypatch.setitem(sys.modules, "endstone", endstone)
     monkeypatch.setitem(sys.modules, "endstone.plugin", plugin_module)
+    event_module = types.ModuleType("endstone.event")
+    event_module.BlockBreakEvent = type("BlockBreakEvent", (), {})
+    event_module.EventPriority = SimpleNamespace(MONITOR=5)
+    event_module.event_handler = lambda **kwargs: (lambda func: func)
+    inventory_module = types.ModuleType("endstone.inventory")
+    inventory_module.ItemStack = type("ItemStack", (), {})
+    monkeypatch.setitem(sys.modules, "endstone.event", event_module)
+    monkeypatch.setitem(sys.modules, "endstone.inventory", inventory_module)
     monkeypatch.delitem(sys.modules, "endstone_vein_miner.plugin", raising=False)
 
     loaded = importlib.import_module("endstone_vein_miner.plugin")
