@@ -9,7 +9,9 @@ from endstone_vein_miner.audit import COLUMNS, TianyanAudit, format_states
 def create_audit(tmp_path):
     root = tmp_path / "tianyan_data"
     root.mkdir()
-    (root / "config.json").write_text(json.dumps({"database_type": "sqlite", "log_block_break": True}), encoding="utf-8")
+    (root / "config.json").write_text(
+        json.dumps({"database_type": "sqlite", "log_block_break": True}), encoding="utf-8"
+    )
     path = root / "ty_data.db"
     with sqlite3.connect(path) as db:
         db.execute(
