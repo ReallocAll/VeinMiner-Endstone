@@ -1,178 +1,35 @@
-# VeinMiner Plugin for Endstone
+# VeinMiner-Endstone · 中文服务器专用 Fork
 
-A configurable vein-mining plugin for Endstone servers.
+基于 EuphoriaDevelopmentOrg/VeinMiner-Endstone v2.0.3；保留上游 MIT 许可证。
 
-Requires Endstone `v0.11.0` or newer.
+## 使用
 
-## Features
+- `/vm`：中文玩家菜单。
+- `/vm on|off`：连锁总开关。默认关闭，默认需要蹲下，可在菜单关闭蹲下要求（移动端建议）。
+- 分类开关：矿石、树木、树叶、植被。矿石默认允许，其他类别默认关闭。
+- 管理员在 `/vm` 底部使用独立的「连锁上限」入口：默认 / 24 / 64 / 128 / 256。管理员设置保存在 `server.json`。选择非默认值时，单次包含起始方块、树干和清理树叶在内的总上限不超过设定值；扩大上限会增加搜索半径，仅搜索已加载区块。
+- `/vm status`：检查当前玩家开关，排查无法触发的情况。
+- 只通过 Tip 提示成功，不刷聊天栏。
 
-- Vein mining for ores, logs, and leaves.
-- Activation modes: sneak, stand, or always.
-- Tool validation by block category (pickaxe/axe/shears/hoe).
-- Enchantment-aware drops:
-  - Silk Touch keeps ore blocks.
-  - Fortune increases item yields for supported ores.
-  - Unbreaking can reduce durability damage.
-- Auto-smelt support with optional fortune requirement and whitelist.
-- XP rewards:
-  - Per-block ore XP.
-  - Optional vein-size bonus multiplier.
-  - Optional extra smelting XP when auto-smelt is active.
-- Auto-pickup with overflow handling (`drop` or `delete`).
-- Anti-abuse and limits (per-minute and daily caps).
-- Mining pattern controls (`adjacent`, `cube`, `sphere`, `vertical`, `horizontal`).
-- Independent chain mining (directional 3x3xdepth-style cuboid).
-- Particle and sound effects (per-block or completion).
-- Player statistics and milestone announcements.
-- Update checker against GitHub releases.
+## 基岩版 26.52 覆盖
 
-## Installation
+- 普通矿石及对应深板岩变种（含红石发光状态），下界石英/金矿、远古残骸；沿已连接矿块的 26 个方向有界搜索，不跳过岩石连接无关矿脉。
+- 原木/木头、去皮变种、绯红与诡异菌柄、竹块；包括 26.50 新增的杨树完整木材系列。
+- 普通树叶、杜鹃与开花杜鹃、红/橙/黄杨树叶；使用斧子连锁清叶、树枝斜向及有限自然树叶桥接，保护持久树叶。
+- 「植被连锁」覆盖竹子、甘蔗、仙人掌、海带、蘑菇、搁板菌、红色灌木、常见单格花草、麦子/胡萝卜/马铃薯/甜菜根、地狱疣、可可豆、甜浆果丛等；有成熟度的作物按状态计算掉落。不允许未知方块或未知状态进入破坏流程。
+- **完整的原版植物范围仍有限制**：双格花草、带复杂方块状态的藤蔓、部分特殊植被、方块实体以及附魔/特殊掉落不能保证与原版一致，因此不会靠「直接删除」伪装全覆盖。自定义模组方块不默认纳入。
 
-```bash
-pip install endstone-vein-miner
-```
+## 安全和性能
 
-Or from source:
+- **不写入 Tianyan 数据库**，也不要求安装 Tianyan。其余插件原有玩家挖掘记录仍由它自身负责，VeinMiner 额外破坏不会产生 Tianyan 记录。
+- Territory：延续原 SQLite 只读快照方式，按 `if_break` 逐目标校验；数据库/配置不可读时 fail-closed。
+- 树叶连锁仅用斧子触发（不再接受空手或剪刀）；普通斧子按树苗/木棍/苹果概率掉落，时运改变概率，精准采集掉落叶块。树冠自动清叶仍保留正常自然掉落。
+- Territory 的权限快照按维度预分组，逐目标校验时不再反复生成命中领地列表，且每 tick 仍刷新权限。
+- 每 tick 最多执行 8 次额外破坏；读块搜索有界，保留工具耐久更新及异常回滚。附魔工具不会因经验修补、效率、诅咒或其他无关附魔而被拒绝；时运/精准采集/耐久按安全上限结算，双附魔冲突时精准采集优先。
+- 经验修补目前针对手持工具使用本插件产生的矿物 XP 进行修复；公开 API 的 `give_exp` 不等同于原版经验球，未模拟多件装备之间的随机经验修补分配。
+- 为兼容触屏设备，是否蹲下只在原始破坏事件判断一次，后续 tick 不再重新要求玩家保持蹲下。
+- 支持 Python 3.12–3.15 / Endstone 0.11；源仓库仅运行 lint/tests/build，真实 BDS 启停在 `ReallocAll/bds-test-lab` 独立验证。
 
-```bash
-git clone https://github.com/EuphoriaDevelopmentOrg/VeinMiner-Endstone.git
-cd VeinMiner-Endstone
-pip install -e .
-```
+## 当前验收状态
 
-Start your Endstone server. The plugin is auto-discovered through the `endstone` entry point.
-
-## Commands
-
-| Command | Description | Permission |
-|---|---|---|
-| `/veinminer` or `/vm` | Help | `veinminer.command` |
-| `/vm reload` | Reload config | `veinminer.reload` |
-| `/vm stats` | View personal stats | `veinminer.stats` |
-| `/vm toggle` | Toggle vein miner | `veinminer.toggle` |
-| `/vm on` | Enable vein miner | `veinminer.toggle` |
-| `/vm off` | Disable vein miner | `veinminer.toggle` |
-| `/vm status` | Show current status | `veinminer.toggle` |
-| `/vm chain toggle` | Toggle chain mining | `veinminer.chain` |
-| `/vm chain on` | Enable chain mining | `veinminer.chain` |
-| `/vm chain off` | Disable chain mining | `veinminer.chain` |
-| `/vm chain status` | Show chain status | `veinminer.chain` |
-
-Aliases: `/vm`, `/vmine`
-
-Note: plugin-wide settings actions (currently `/vm reload`) require OP (or console) at runtime.
-
-## Permissions
-
-- `veinminer.use` (default: true)
-- `veinminer.chain` (default: true)
-- `veinminer.command` (default: op)
-- `veinminer.reload` (default: op)
-- `veinminer.stats` (default: true)
-- `veinminer.toggle` (default: true)
-- `veinminer.*` (default: op)
-
-## Configuration
-
-The plugin writes `config.toml` to the plugin data folder.
-
-### Main sections in `config.toml`
-
-- Root keys:
-  - `max-blocks`, `batch-size`, `min-vein-size`, `cooldown-ms`
-- `[auto-pickup]`
-  - `enabled`, `full-inventory-action`
-- `[auto-smelt]`
-  - `enabled`, `require-fortune`, `whitelist`, `give-xp`, `xp-multiplier`
-- `[tool-durability]`
-  - `multiplier`, `respect-unbreaking`, `break-on-exceed`
-- `[experience]`
-  - `enabled`, `bonus-enabled`, `bonus-per-blocks`, `multiplier`
-- `[activation]`
-  - `mode`, `per-block-permissions`, `require-correct-tool`, `max-reach-distance`
-- `[mining-pattern]`
-  - `pattern`, `radius`, `include-diagonals`, `vertical-range`, `horizontal-range`
-- `[chain-mining]`
-  - `enabled`, `mode`, `require-correct-tool`, `per-block-permissions`, `only-configured-blocks`
-  - `width-radius`, `height-radius`, `depth`, `max-blocks`, `same-block-only`
-- `[effects.particles]`
-  - `enabled`, `type`, `count`, `radius`, `per-block`
-- `[effects.sounds]`
-  - `enabled`, `completion-sound`, `volume`, `pitch`, `per-block-sound`, `block-sound`
-- `[limits]`
-  - `enable-limits`, `max-veins-per-day`, `max-blocks-per-day`
-- `[anti-abuse]`
-  - `max-veins-per-minute`, `temporary-block-duration`, `log-suspicious-activity`
-- `[statistics]`
-  - `enabled`, `storage`, `save-to-file`, `auto-save-interval`, `milestones`, `broadcast-milestones`
-- `[statistics.mysql]`
-  - `enabled`, `host`, `port`, `database`, `user`, `password`, `table-prefix`, `connect-timeout`
-- `[update-checker]`, `[logging]`, `[enabled-blocks]`, `[messages]`, `[blocks]`
-
-Notes:
-- `max-blocks = -1` is accepted and internally capped for safety.
-- `auto-smelt.whitelist` accepts block ids with or without `minecraft:` prefix.
-- `statistics.auto-save-interval = 0` means save on each update; otherwise periodic saves are used.
-- `limits.reset-time` is currently not enforced; daily reset runs on a fixed 24-hour scheduler.
-
-## Behavior Notes
-
-- Tool validation is category-based:
-  - Ores/amethyst/ancient debris -> pickaxe
-  - Logs/stems -> axe
-  - Leaves -> shears, hoe, or axe
-- If `activation.require-correct-tool = false`, tool checks are skipped.
-- `auto-pickup.enabled = false` drops computed rewards at block location.
-- XP is granted directly to the player (not orb entities).
-- Fortune/Silk Touch are applied to plugin-managed drops.
-
-## Statistics
-
-Statistics support two backends:
-- `storage = "yaml"`: persisted to `stats.yml` in the plugin data folder.
-- `storage = "mysql"`: persisted to MySQL tables (`<table-prefix>player_stats`, `<table-prefix>player_milestones`).
-
-MySQL can be enabled by either:
-- `statistics.storage = "mysql"`, or
-- `statistics.mysql.enabled = true` (legacy toggle compatibility).
-
-If MySQL initialization fails, the plugin falls back to YAML when `statistics.save-to-file = true`.
-
-Tracked fields per player:
-- total veins mined
-- total blocks mined through vein miner
-- largest vein
-- last mined timestamp
-- achieved milestones
-
-## Troubleshooting
-
-- Vein mining not triggering:
-  - Check `veinminer.use`
-  - Verify activation mode in `[activation]`
-  - Confirm world is not in `disabled-worlds`
-  - Check `/vm status`
-- Wrong drops or no auto-smelt:
-  - Check `[auto-smelt]`
-  - Check tool enchantments and `require-fortune`
-  - Confirm block is in whitelist if whitelist is set
-- No stats updates:
-  - Check `[statistics].enabled`
-  - If using YAML, ensure plugin data folder is writable
-  - If using MySQL, verify `[statistics.mysql]` credentials/database and that `mysql-connector-python` is installed
-
-## Development
-
-```bash
-pip install -e .
-python -m build
-```
-
-Source files:
-- `src/endstone_vein_miner/vein_miner_plugin.py`
-- `src/endstone_vein_miner/vein_miner_command.py`
-- `src/endstone_vein_miner/statistics_tracker.py`
-
-## License
-
-MIT
+此 PR 仍为 Draft。真实玩家在移动端触屏操作、全部原版植物掉落、领地跨界、插件并发以及 MSPT 实测尚未完成。BDS 启停或 mock 单测成功不代表上述功能已通过实际体验验证。
