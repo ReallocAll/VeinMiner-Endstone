@@ -201,7 +201,9 @@ def test_all_enchantment_combinations_ignore_unrelated_effects():
             enchants = {Enchantment(f"minecraft:{name}"): (5 if name == "efficiency" else 3) for name in selection}
             meta = SimpleNamespace(has_enchants=bool(enchants), enchants=enchants)
             levels = _enchant_levels(meta)
-            assert set(levels) <= {"minecraft:fortune", "minecraft:silk_touch", "minecraft:unbreaking", "minecraft:mending"}
+            assert set(levels) <= {
+                "minecraft:fortune", "minecraft:silk_touch", "minecraft:unbreaking", "minecraft:mending"
+            }
             assert levels.get("minecraft:fortune", 0) <= 3
             assert levels.get("minecraft:unbreaking", 0) <= 3
             if "silk_touch" in selection:
