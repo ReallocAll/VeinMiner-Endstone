@@ -95,7 +95,10 @@ def plant_rewards(block_id: str, states: dict[str, object], rng: Random) -> tupl
     if block_id not in PLANTS:
         return None
     crop = block_id.removeprefix("minecraft:")
-    if crop in {"wheat", "carrots", "potatoes", "beetroot", "nether_wart", "cocoa", "sweet_berry_bush", "torchflower_crop"}:
+    if crop in {
+        "wheat", "carrots", "potatoes", "beetroot", "nether_wart", "cocoa",
+        "sweet_berry_bush", "torchflower_crop",
+    }:
         key = "age" if crop in {"nether_wart", "cocoa"} else "growth"
         age = states.get(key)
         if type(age) is not int or age < 0:
@@ -122,12 +125,16 @@ def plant_rewards(block_id: str, states: dict[str, object], rng: Random) -> tupl
         if crop == "wheat":
             if age >= 7:
                 count = rng.randint(0, 3)
-                return (Reward("minecraft:wheat", 1, 0),) + ((Reward("minecraft:wheat_seeds", count, 0),) if count else ())
+                return (Reward("minecraft:wheat", 1, 0),) + (
+                    (Reward("minecraft:wheat_seeds", count, 0),) if count else ()
+                )
             return (Reward("minecraft:wheat_seeds", 1, 0),)
         if crop == "beetroot":
             if age >= 7:
                 count = rng.randint(0, 3)
-                return (Reward("minecraft:beetroot", 1, 0),) + ((Reward("minecraft:beetroot_seeds", count, 0),) if count else ())
+                return (Reward("minecraft:beetroot", 1, 0),) + (
+                    (Reward("minecraft:beetroot_seeds", count, 0),) if count else ()
+                )
             return (Reward("minecraft:beetroot_seeds", 1, 0),)
         if crop in {"carrots", "potatoes"}:
             item_id = "minecraft:carrot" if crop == "carrots" else "minecraft:potato"
