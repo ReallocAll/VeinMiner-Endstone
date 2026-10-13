@@ -123,3 +123,13 @@ def test_nether_stems_hyphae_and_bamboo_are_supported_wood():
     ):
         assert block_category(block_id) == "logs"
         assert correct_tool(block_id, "minecraft:iron_axe")
+
+
+def test_hand_can_chain_leaves_when_player_enables_leaf_category():
+    settings = DEFAULT_SETTINGS.copy()
+    settings["enabled"] = True
+    settings["leaves"] = True
+    assert should_scan(settings, True, "minecraft:oak_leaves", "minecraft:air")
+    assert not should_scan(settings, False, "minecraft:oak_leaves", "minecraft:air")
+    assert not should_scan(settings, True, "minecraft:diamond_ore", "minecraft:air")
+    assert not should_scan(settings, True, "minecraft:oak_log", "minecraft:air")

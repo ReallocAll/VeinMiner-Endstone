@@ -216,3 +216,32 @@ def test_drop_spawn_raising_after_entity_creation_does_not_duplicate_block(monke
     assert blocks[positions[0]].type == "minecraft:air"
     assert len(drops) == 1
     assert events == ["block_removed", "audit_success"]
+
+
+def test_barehand_leaf_mining_removes_leaves_without_dropping_leaf_blocks(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+    player.inventory.item_in_main_hand = None
+    for block in blocks.values():
+        block.type = "minecraft:oak_leaves"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    audit = SimpleNamespace(prepare=lambda *args: "row", finish=lambda *args, **kwargs: None)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, audit, logger) == 2
+    assert all(block.type == "minecraft:air" for block in blocks.values())
+    assert not any(item == "minecraft:oak_leaves" for _, (item, count) in drops)
+
+
+def test_tree_canopy_clear_keeps_axe_durability(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+    player.inventory.item_in_main_hand.type = FakeType("minecraft:iron_axe")
+    for block in blocks.values():
+        block.type = "minecraft:oak_leaves"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    audit = SimpleNamespace(prepare=lambda *args: "row", finish=lambda *args, **kwargs: None)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, audit, logger, canopy=True) == 2
+    assert player.inventory.item_in_main_hand.item_meta.damage == 0

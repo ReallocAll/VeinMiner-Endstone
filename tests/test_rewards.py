@@ -38,3 +38,23 @@ def test_silk_touch_and_fortune_resource_drops():
             assert 1 <= reward_for("minecraft:diamond_ore", rng, fortune=level).count <= max_count
             assert 4 <= reward_for("minecraft:redstone_ore", rng, fortune=level).count <= 5 + level
             assert 2 <= reward_for("minecraft:copper_ore", rng, fortune=level).count <= 5 * max_count
+
+
+def test_barehand_leaves_use_independent_random_drops():
+    from endstone_vein_miner.rewards import leaf_rewards
+
+    rng = Random(61)
+    oak = [leaf_rewards("minecraft:oak_leaves", rng) for _ in range(20000)]
+    saplings = sum(any(r.item == "minecraft:oak_sapling" for r in drops) for drops in oak)
+    sticks = sum(any(r.item == "minecraft:stick" for r in drops) for drops in oak)
+    apples = sum(any(r.item == "minecraft:apple" for r in drops) for drops in oak)
+    assert 800 < saplings < 1200
+    assert 300 < sticks < 500
+    assert 60 < apples < 140
+    assert all(r.item != "minecraft:oak_leaves" for drops in oak for r in drops)
+
+    mangrove = [leaf_rewards("minecraft:mangrove_leaves", rng) for _ in range(3000)]
+    assert all(r.item != "minecraft:mangrove_propagule" for drops in mangrove for r in drops)
+    assert all(r.item == "minecraft:stick" for drops in mangrove for r in drops)
+    assert any(r.item == "minecraft:azalea" for _ in range(200) for r in leaf_rewards("minecraft:azalea_leaves", rng))
+    assert leaf_rewards("minecraft:stone", rng) == ()
