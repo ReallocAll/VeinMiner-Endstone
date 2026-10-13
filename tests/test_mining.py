@@ -94,3 +94,20 @@ def test_bfs_uses_six_neighbors_for_logs_and_fails_closed_for_unknown_blocks():
     before = len(world.reads)
     assert find_connected(unknown) == []
     assert len(world.reads) == before
+
+
+def test_bfs_skips_invalid_dimension_coordinates():
+    blocks = {
+        (2, 0, 2): "minecraft:oak_log",
+        (2, 1, 2): "minecraft:oak_log",
+    }
+
+    class HeightBoundedDimension(FakeDimension):
+        def get_block_at(self, x, y, z):
+            if y < 0 or y >= 128:
+                raise ValueError("outside dimension height")
+            return super().get_block_at(x, y, z)
+
+    world = HeightBoundedDimension(blocks)
+    assert find_connected(seed_at(world, (2, 0, 2))) == [(2, 1, 2)]
+    assert world.blocks == blocks

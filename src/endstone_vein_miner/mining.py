@@ -112,7 +112,11 @@ def find_connected(seed) -> list[tuple[int, int, int]]:
                 or nz >> 4 != chunk_z
             ):
                 continue
-            if dimension.get_block_at(nx, ny, nz).type == block_id:
+            try:
+                adjacent = dimension.get_block_at(nx, ny, nz)
+            except (ValueError, RuntimeError):
+                continue
+            if adjacent is not None and adjacent.type == block_id:
                 selected.append(point)
                 queue.append(point)
                 if len(selected) == MAX_BLOCKS - 1:

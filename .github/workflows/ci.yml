@@ -53,7 +53,9 @@ jobs:
           python -m pip install --no-deps "endstone>=0.11,<0.12" "lazy-loader>=0.4" "tomlkit>=0.13" "importlib-resources>=6"
           python - <<'PY'
           from endstone import Player
+          from endstone.block import Block
           from endstone.form import ActionForm
+          from endstone.level import Dimension
           from endstone.plugin import Plugin
           from endstone_vein_miner.plugin import VeinMinerPlugin
 
@@ -62,7 +64,11 @@ jobs:
           assert hasattr(Player, "send_form")
           assert hasattr(Player, "send_tip")
           assert hasattr(Player, "perform_command")
+          assert hasattr(Player, "is_valid")
           assert hasattr(Plugin, "data_folder")
+          assert hasattr(Dimension, "get_block_at")
+          assert hasattr(Block, "type")
+          assert hasattr(Block, "dimension")
           form = ActionForm(title="连锁挖掘", content="静态绑定验证")
           form.add_button("开关")
           form.on_submit = lambda player, index: None
