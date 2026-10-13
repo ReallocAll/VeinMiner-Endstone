@@ -12,8 +12,19 @@ from pathlib import Path
 from uuid import uuid4
 
 COLUMNS = (
-    "uuid", "id", "name", "pos_x", "pos_y", "pos_z", "world",
-    "obj_id", "obj_name", "time", "type", "data", "status",
+    "uuid",
+    "id",
+    "name",
+    "pos_x",
+    "pos_y",
+    "pos_z",
+    "world",
+    "obj_id",
+    "obj_name",
+    "time",
+    "type",
+    "data",
+    "status",
 )
 
 
@@ -53,8 +64,19 @@ class TianyanAudit:
             db.execute(
                 "INSERT INTO LOGDATA (uuid,id,name,pos_x,pos_y,pos_z,world,obj_id,obj_name,"
                 "time,type,data,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (uid, "minecraft:player", player, *pos, dimension, block_id, "", int(time.time()),
-                 "block_break", states, "veinminer_pending"),
+                (
+                    uid,
+                    "minecraft:player",
+                    player,
+                    *pos,
+                    dimension,
+                    block_id,
+                    "",
+                    int(time.time()),
+                    "block_break",
+                    states,
+                    "veinminer_pending",
+                ),
             )
         return uid
 

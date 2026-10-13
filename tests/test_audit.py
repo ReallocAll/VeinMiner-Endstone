@@ -13,10 +13,11 @@ def create_audit(tmp_path):
     path = root / "ty_data.db"
     with sqlite3.connect(path) as db:
         db.execute(
-            "CREATE TABLE LOGDATA (" + ",".join(
-                f"{col} TEXT" if col not in {"pos_x", "pos_y", "pos_z", "time"} else f"{col} REAL"
-                for col in COLUMNS
-            ) + ")"
+            "CREATE TABLE LOGDATA ("
+            + ",".join(
+                f"{col} TEXT" if col not in {"pos_x", "pos_y", "pos_z", "time"} else f"{col} REAL" for col in COLUMNS
+            )
+            + ")"
         )
     return TianyanAudit(tmp_path)
 
@@ -30,7 +31,10 @@ def test_tianyan_precommit_and_completion(tmp_path):
     audit.finish(uid, success=True)
     with sqlite3.connect(audit.db_path) as db:
         assert db.execute("SELECT name, world, type, status FROM LOGDATA WHERE uuid=?", (uid,)).fetchone() == (
-            "Alice", "overworld", "block_break", "",
+            "Alice",
+            "overworld",
+            "block_break",
+            "",
         )
 
 

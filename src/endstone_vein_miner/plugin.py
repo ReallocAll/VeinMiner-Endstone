@@ -42,9 +42,7 @@ class VeinMinerPlugin(Plugin):
         if options_path.exists():
             try:
                 options = json.loads(options_path.read_text(encoding="utf-8"))
-                self._extra_enabled = (
-                    isinstance(options, dict) and options.get("experimental_extra_breaks") is True
-                )
+                self._extra_enabled = isinstance(options, dict) and options.get("experimental_extra_breaks") is True
             except (OSError, ValueError) as exc:
                 self.logger.error(f"实验性设置加载失败，连锁破坏保持禁用: {exc}")
         if self._extra_enabled:

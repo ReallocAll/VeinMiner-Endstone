@@ -43,7 +43,7 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     event_module = types.ModuleType("endstone.event")
     event_module.BlockBreakEvent = type("BlockBreakEvent", (), {})
     event_module.EventPriority = SimpleNamespace(MONITOR=5)
-    event_module.event_handler = lambda **kwargs: (lambda func: func)
+    event_module.event_handler = lambda **kwargs: lambda func: func
     inventory_module = types.ModuleType("endstone.inventory")
     inventory_module.ItemStack = type("ItemStack", (), {})
     monkeypatch.setitem(sys.modules, "endstone.event", event_module)
