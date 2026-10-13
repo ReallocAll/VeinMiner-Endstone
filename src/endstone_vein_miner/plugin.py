@@ -17,7 +17,7 @@ from .tree import blocking_leaves, leaf_family
 
 class VeinMinerPlugin(Plugin):
     api_version = "0.11"
-    version = "2.0.3+server.5"
+    version = "2.0.3+server.6"
 
     commands = {
         "vm": {
