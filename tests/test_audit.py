@@ -84,6 +84,7 @@ def test_tianyan_break_logging_disabled_blocks_extra_mining(tmp_path):
     with pytest.raises(RuntimeError):
         audit.prepare("Alice", "overworld", (1, 70, 2), "minecraft:diamond_ore", "")
 
+
 def test_reuses_one_connection_with_committed_per_block_audit(tmp_path, monkeypatch):
     audit = create_audit(tmp_path)
     native_connect = sqlite3.connect
@@ -151,11 +152,7 @@ def test_database_replacement_reopens_instead_of_writing_stale_inode(tmp_path):
     old = audit._db
     other = audit.db_path.parent / "replacement.db"
     with sqlite3.connect(other) as db:
-        db.execute(
-            "CREATE TABLE LOGDATA ("
-            + ",".join(f"{col} TEXT" for col in COLUMNS)
-            + ")"
-        )
+        db.execute("CREATE TABLE LOGDATA (" + ",".join(f"{col} TEXT" for col in COLUMNS) + ")")
     other.replace(audit.db_path)
     assert audit.refresh()
     assert audit._db is not old
