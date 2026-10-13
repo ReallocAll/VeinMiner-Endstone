@@ -19,12 +19,18 @@ def reward_for(block_id: str, rng: Random, *, silk_touch: bool = False, fortune:
     if block_id in LOGS or block_id in LEAVES:
         return Reward(block_id, 1, 0)
     if silk_touch:
-        return Reward(block_id, 1, 0) if block_id.removeprefix("minecraft:") in ORE_TIERS else None
+        if block_id.removeprefix("minecraft:") not in ORE_TIERS:
+            return None
+        # Bedrock's lit redstone IDs are internal block states, not obtainable items.
+        item_id = block_id.replace("minecraft:lit_", "minecraft:", 1)
+        return Reward(item_id, 1, 0)
     if not block_id.startswith("minecraft:"):
         return None
     name = block_id.removeprefix("minecraft:")
     if name not in ORE_TIERS:
         return None
+    if name.startswith("lit_"):
+        name = name.removeprefix("lit_")
     if name.startswith("deepslate_"):
         name = name.removeprefix("deepslate_")
 
