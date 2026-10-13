@@ -152,13 +152,14 @@ def plant_rewards(
         return (Reward("minecraft:cocoa_beans", 3 if age == 2 else 1, 0),)
 
     if crop == "sweet_berry_bush":
-        # Bedrock has growth 0..7, unlike Java's age 0..3.
+        # Bedrock uses the growth state, with 0..3 in current block definitions;
+        # legacy 4..7 metadata forms are also recognized when exposed.
         growth = states.get("growth")
         if type(growth) is not int or not 0 <= growth <= 7:
             return None
-        if growth < 4:
+        if growth in (0, 1):
             return ()
-        low, high = (2, 3) if growth == 7 else (1, 2)
+        low, high = (2, 3) if growth in (3, 7) else (1, 2)
         return (Reward("minecraft:sweet_berries", rng.randint(low, high + fortune), 0),)
 
     if crop == "torchflower_crop":
@@ -174,7 +175,7 @@ def plant_rewards(
         return (Reward(block_id, 2 if growth >= 3 else 1, 0),)
 
     if crop == "short_grass":
-        if shears or silk_touch:
+        if shears:
             return (Reward(block_id, 1, 0),)
         if rng.randrange(8) == 0:
             return (Reward("minecraft:wheat_seeds", rng.randint(1, 2 * fortune + 1), 0),)
