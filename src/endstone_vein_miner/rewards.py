@@ -7,7 +7,7 @@ simulated: incorrect rewards or missing durability must not be silently accepted
 from dataclasses import dataclass
 from random import Random
 
-from .mining import LOGS, LEAVES, ORE_TIERS
+from .mining import LEAVES, LOGS, ORE_TIERS
 
 
 @dataclass(frozen=True)
