@@ -74,3 +74,14 @@ def test_get_does_not_leak_mutable_state(tmp_path):
     settings = store.get("uuid-a")
     settings["enabled"] = True
     assert not store.enabled("uuid-a")
+
+
+def test_unchanged_setting_does_not_touch_disk(tmp_path):
+    path = tmp_path / "players.json"
+    store = SettingsStore(path)
+    store.set("uuid-a", "enabled", False)
+    assert not path.exists()
+    store.set("uuid-a", "enabled", True)
+    before = path.stat().st_mtime_ns
+    store.set("uuid-a", "enabled", True)
+    assert path.stat().st_mtime_ns == before
