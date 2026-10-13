@@ -1,0 +1,89 @@
+name: Publish VeinMiner v2.0.3+server.10
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-release.yml"]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.repository == 'ReallocAll/VeinMiner-Endstone' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: fc05765501791e834302c7ffb4525d104e6743dd
+      SOURCE_RUN: "38435174292"
+      TAG: "v2.0.3+server.10"
+    steps:
+      - name: Download wheel from verified main CI
+        run: |
+          set -euo pipefail
+          actual="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq '.head_sha')"
+          conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq '.conclusion')"
+          test "$actual" = "$SOURCE_SHA"
+          test "$conclusion" = "success"
+          mkdir -p dist
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" \
+            --name veinminer-wheel-py3 --dir dist
+
+      - name: Verify wheel metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from email.parser import Parser
+          from zipfile import ZipFile
+
+          wheels = list(Path("dist").glob("*.whl"))
+          assert len(wheels) == 1, wheels
+          assert wheels[0].name == "endstone_vein_miner-2.0.3+server.10-py3-none-any.whl", wheels[0].name
+          with ZipFile(wheels[0]) as archive:
+              assert archive.testzip() is None
+              metadata_path, = (p for p in archive.namelist() if p.endswith(".dist-info/METADATA"))
+              metadata = Parser().parsestr(archive.read(metadata_path).decode())
+              assert metadata["Name"] == "endstone-vein-miner"
+              assert metadata["Version"] == "2.0.3+server.10"
+              assert "endstone_vein_miner/plugin.py" in archive.namelist()
+          print("Release wheel verified:", wheels[0])
+          PY
+
+      - name: Publish GitHub Release
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to overwrite it."
+            exit 1
+          fi
+          cat > release-notes.md <<'NOTES'
+          ## VeinMiner 2.0.3+server.10
+
+          First server-specialized release of the Chinese VeinMiner fork for **Minecraft Bedrock 26.52**.
+
+          ### Features
+          - Chinese per-player GUI (`/vm`): ore, trees, leaves, vegetation, global enable, and optional sneak activation.
+          - Administrator GUI to set the total chain limit: default / 24 / 64 / 128 / 256 blocks.
+          - Bounded ore-vein search (including normal/deepslate variants), large-tree branches, natural leaf bridges, and additional Bedrock vegetation.
+          - **Axe-only leaf chaining**: bare hands and shears do not activate the chain. Fortune affects leaf drops; Silk Touch yields leaf blocks.
+          - Supports common and mixed tool enchantments, including Mending, Fortune, Silk Touch, and Unbreaking.
+          - Per-block Territory permission checks, optimized claim lookups, and batches capped at eight additional blocks per tick.
+          - No Tianyan database integration or writes.
+
+          ### Requirements and installation
+          - Endstone **0.11.x** / Python **3.12–3.15**.
+          - Download the `.whl` below, put it into your server's `plugins/` folder, remove older VeinMiner wheels, and restart Endstone.
+
+          ### Verification
+          - [69 unit tests and four-version CI matrix](https://github.com/ReallocAll/VeinMiner-Endstone/actions/runs/38435174292)
+          - [Independent real-BDS startup / command / shutdown smoke test](https://github.com/ReallocAll/bds-test-lab/actions/runs/38434912117)
+          - [Merged PR #1](https://github.com/ReallocAll/VeinMiner-Endstone/pull/1)
+
+          **Limitations:** Real mobile-client mining, unusual vanilla plant loot, live Territory boundary behavior, and MSPT at 256-block settings require additional field validation. The BDS smoke test does not simulate player mining; multi-slot Mending XP assignment is approximate. Retain recoverable world backups before deployment.
+          NOTES
+          gh release create "$TAG" dist/*.whl \
+            --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
+            --title "VeinMiner 2.0.3+server.10" \
+            --notes-file release-notes.md --latest
