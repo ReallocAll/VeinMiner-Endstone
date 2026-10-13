@@ -102,8 +102,7 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     monkeypatch.setattr(loaded, "mine_extra", lambda *args, **kwargs: harvested.append(args) or 1)
     plugin.logger = SimpleNamespace(error=lambda msg: (_ for _ in ()).throw(AssertionError(msg)))
     plugin._finish_break(
-        player, "uuid-a", "minecraft:iron_ore", "overworld",
-        (2, 64, 2), [("minecraft:iron_ore", [(2, 64, 3)], False)]
+        player, "uuid-a", "minecraft:iron_ore", "overworld", (2, 64, 2), [("minecraft:iron_ore", [(2, 64, 3)], False)]
     )
     assert len(harvested) == 1
     assert player.tips[-1] == "§a连锁挖掘 +1"

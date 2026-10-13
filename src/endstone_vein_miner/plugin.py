@@ -78,11 +78,7 @@ class VeinMinerPlugin(Plugin):
         if block_category(block_id) == "logs":
             leaf_id = leaf_family(block_id)
             if leaf_id:
-                leaf_budget = (
-                    max(0, self.limits.override - 1 - len(positions))
-                    if self.limits.override
-                    else 64
-                )
+                leaf_budget = max(0, self.limits.override - 1 - len(positions)) if self.limits.override else 64
                 if leaf_budget:
                     canopy = blocking_leaves(
                         original,
