@@ -22,7 +22,7 @@ def show_menu(plugin, player) -> None:
     values = plugin.settings.get(player_id)
     form = ActionForm(
         title="§l§6连锁挖掘",
-        content="先开启总开关和对应类型。\n默认蹲下触发；树叶使用斧子。",
+        content="先开启总开关和对应类型。\n默认蹲下；树叶：斧子自然掉落，剪刀掉叶块。",
     )
     for key, label in zip(SETTING_KEYS, LABELS, strict=True):
         form.add_button(f"§f{label}\n{'§a已开启' if values[key] else '§c已关闭'}")

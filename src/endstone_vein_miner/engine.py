@@ -102,12 +102,13 @@ def mine_extra(
                 if rewards is None:
                     continue
             elif actual_id in LEAVES:
-                if not canopy and enchantments.get("minecraft:silk_touch"):
-                    rewards = (Reward(actual_id, 1, 0),)
-                else:
-                    rewards = leaf_rewards(
-                        actual_id, rng, fortune=0 if canopy else enchantments.get("minecraft:fortune", 0)
-                    )
+                # Axes always behave like bare hands for chained leaves,
+                # regardless of enchantments. Shears collect intact leaf blocks.
+                rewards = (
+                    (Reward(actual_id, 1, 0),)
+                    if not canopy and tool_id == "minecraft:shears"
+                    else leaf_rewards(actual_id, rng)
+                )
             else:
                 reward = reward_for(
                     actual_id,
@@ -144,6 +145,7 @@ def mine_extra(
             if (
                 meta is not None
                 and not canopy
+                and (actual_id not in LEAVES or tool_id == "minecraft:shears")
                 and not meta.is_unbreakable
                 and rng.randrange(enchantments.get("minecraft:unbreaking", 0) + 1) == 0
             ):

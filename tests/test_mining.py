@@ -56,7 +56,7 @@ def test_tool_material_tiers_and_strict_allowlist():
     assert correct_tool("minecraft:oak_log", "minecraft:wooden_axe")
     assert correct_tool("minecraft:oak_leaves", "minecraft:iron_axe")
     assert correct_tool("minecraft:oak_leaves", "minecraft:wooden_axe")
-    assert not correct_tool("minecraft:oak_leaves", "minecraft:shears")
+    assert correct_tool("minecraft:oak_leaves", "minecraft:shears")
     assert not correct_tool("minecraft:oak_leaves", "minecraft:air")
     assert not correct_tool("minecraft:chest", "minecraft:iron_axe")
     assert block_category("modded:diamond_ore") is None
@@ -127,14 +127,14 @@ def test_nether_stems_hyphae_and_bamboo_are_supported_wood():
         assert correct_tool(block_id, "minecraft:iron_axe")
 
 
-def test_only_axe_can_chain_leaves_when_player_enables_leaf_category():
+def test_axe_or_shears_can_chain_leaves_when_player_enables_leaf_category():
     settings = DEFAULT_SETTINGS.copy()
     settings["enabled"] = True
     settings["leaves"] = True
     assert should_scan(settings, True, "minecraft:oak_leaves", "minecraft:iron_axe")
     assert not should_scan(settings, False, "minecraft:oak_leaves", "minecraft:iron_axe")
     assert not should_scan(settings, True, "minecraft:oak_leaves", "minecraft:air")
-    assert not should_scan(settings, True, "minecraft:oak_leaves", "minecraft:shears")
+    assert should_scan(settings, True, "minecraft:oak_leaves", "minecraft:shears")
     assert not should_scan(settings, True, "minecraft:diamond_ore", "minecraft:air")
     assert not should_scan(settings, True, "minecraft:oak_log", "minecraft:air")
 

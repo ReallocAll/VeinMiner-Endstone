@@ -306,21 +306,69 @@ def test_axe_mines_leaves_with_normal_drops_but_bare_hand_does_not(monkeypatch):
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
     assert all(block.type == "minecraft:air" for block in blocks.values())
     assert not any(item == "minecraft:oak_leaves" for _, (item, count) in drops)
+    assert player.inventory.item_in_main_hand.item_meta.damage == 0
 
 
-def test_silk_touch_axe_returns_leaf_blocks(monkeypatch):
+def test_enchanted_axe_uses_natural_leaf_drops_without_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     player, blocks, positions, drops = make_world([])
     tool = player.inventory.item_in_main_hand
     tool.type = FakeType("minecraft:diamond_axe")
+    tool.item_meta.damage = 4
     tool.item_meta.has_enchants = True
-    tool.item_meta.enchants = {type("Enchant", (), {"id": "minecraft:silk_touch"})(): 1}
+    tool.item_meta.enchants = {
+        type("Enchant", (), {"id": "minecraft:silk_touch"})(): 1,
+        type("Enchant", (), {"id": "minecraft:fortune"})(): 3,
+        type("Enchant", (), {"id": "minecraft:unbreaking"})(): 3,
+    }
+    def forbidden_set_meta(meta):
+        raise AssertionError("Leaf chaining must not modify an axe's metadata")
+
+    tool.set_item_meta = forbidden_set_meta
+    calls = []
+    def natural_drop(block_id, rng, *, fortune=0):
+        calls.append((block_id, fortune))
+        return (engine.Reward("minecraft:oak_sapling", 1, 0),)
+
+    monkeypatch.setattr(engine, "leaf_rewards", natural_drop)
+    for block in blocks.values():
+        block.type = "minecraft:oak_leaves"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
+    assert calls == [("minecraft:oak_leaves", 0)] * 2
+    assert drops == [("place", ("minecraft:oak_sapling", 1))] * 2
+    assert tool.item_meta.damage == 4
+
+
+def test_shears_chain_intact_leaf_blocks_and_consume_durability(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    tool = player.inventory.item_in_main_hand
+    tool.type = FakeType("minecraft:shears")
+    tool.item_meta.damage = 3
     for block in blocks.values():
         block.type = "minecraft:oak_leaves"
     guard = SimpleNamespace(can_break=lambda *args: True)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
     assert drops == [("place", ("minecraft:oak_leaves", 1))] * 2
+    assert tool.item_meta.damage == 5
+
+
+def test_shears_durability_failure_rolls_back_leaf_and_skips_drops(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    tool = player.inventory.item_in_main_hand
+    tool.type = FakeType("minecraft:shears")
+    tool.set_item_meta = lambda meta: False
+    for block in blocks.values():
+        block.type = "minecraft:oak_leaves"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert engine.mine_extra(player, "minecraft:oak_leaves", positions[:1], guard, None, logger) == 0
+    assert blocks[positions[0]].type == "minecraft:iron_ore"
+    assert drops == []
 
 
 def test_tree_canopy_clear_keeps_axe_durability(monkeypatch):
