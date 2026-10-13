@@ -29,6 +29,15 @@ ORE_TIERS.update(
 WOOD_TYPES = ("oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak")
 LOGS = {f"minecraft:{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")}
 LOGS.update({f"minecraft:stripped_{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")})
+LOGS.update(
+    {
+        f"minecraft:{prefix}{wood}_{form}"
+        for prefix in ("", "stripped_")
+        for wood in ("crimson", "warped")
+        for form in ("stem", "hyphae")
+    }
+)
+LOGS.update({"minecraft:bamboo_block", "minecraft:stripped_bamboo_block"})
 LEAVES = {f"minecraft:{wood}_leaves" for wood in WOOD_TYPES}
 LEAVES.update({"minecraft:azalea_leaves", "minecraft:flowering_azalea_leaves"})
 TIERS = {"wooden": 0, "golden": 0, "stone": 1, "copper": 1, "iron": 2, "diamond": 3, "netherite": 4}

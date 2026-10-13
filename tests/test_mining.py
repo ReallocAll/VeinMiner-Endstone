@@ -111,3 +111,15 @@ def test_bfs_skips_invalid_dimension_coordinates():
     world = HeightBoundedDimension(blocks)
     assert find_connected(seed_at(world, (2, 0, 2))) == [(2, 1, 2)]
     assert world.blocks == blocks
+
+
+def test_nether_stems_hyphae_and_bamboo_are_supported_wood():
+    for block_id in (
+        "minecraft:crimson_stem",
+        "minecraft:stripped_warped_hyphae",
+        "minecraft:warped_stem",
+        "minecraft:bamboo_block",
+        "minecraft:stripped_bamboo_block",
+    ):
+        assert block_category(block_id) == "logs"
+        assert correct_tool(block_id, "minecraft:iron_axe")
