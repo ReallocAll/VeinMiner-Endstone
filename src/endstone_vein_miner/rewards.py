@@ -1,8 +1,4 @@
-"""Conservative vanilla-style rewards for unenchanted tools only.
-
-Fortune, Silk Touch, specialized tools and non-vanilla blocks are intentionally not
-simulated: incorrect rewards or missing durability must not be silently accepted.
-"""
+"""Constrained vanilla-style rewards with limited enchant and leaf drop support."""
 
 from dataclasses import dataclass
 from random import Random

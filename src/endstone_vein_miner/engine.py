@@ -1,6 +1,6 @@
 """Main-thread experimental executor with per-block Territory and Tianyan checks.
 
-This is deliberately limited to unenchanted tools. It is not a replacement for
+Vanilla leaf rolls and selected enchantments are simulated. This is not a replacement for
 BDS's native player-break and loot pipeline.
 """
 
