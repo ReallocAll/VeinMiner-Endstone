@@ -171,43 +171,83 @@ def should_scan(settings: dict[str, bool], sneaking: bool, block_id: str, item_i
 
 
 def find_vertical_plant(seed, max_blocks: int) -> list[tuple[int, int, int]]:
-    """Harvest one column without selecting its lowest surviving plant block.
-
-    If the player broke the lowest block, every segment above is eligible.
-    Otherwise retain the bottom segment, including when breaking from the top.
-    """
+    """Search horizontally connected plant columns; preserve each root on upper harvests."""
     dimension = seed.dimension
-    x, z = seed.x, seed.z
     family = VERTICAL_PLANTS[str(seed.type)]
-    bottom = seed.y
+    sx, sy, sz = seed.x, seed.y, seed.z
+    loaded = getattr(dimension, "loaded_chunks", None)
+    loaded_chunks = {(chunk.x, chunk.z) for chunk in loaded} if loaded is not None else {(sx >> 4, sz >> 4)}
+    radius = max(MAX_RADIUS, min(16, int((max_blocks ** (1 / 3)) * 2)))
+    cache: dict[tuple[int, int, int], str | None] = {}
 
-    for _ in range(MAX_VERTICAL_SCAN):
-        try:
-            below = dimension.get_block_at(x, bottom - 1, z)
-        except (ValueError, RuntimeError):
-            return []  # Unknown support: do not risk the root.
-        if below is None or VERTICAL_PLANTS.get(str(below.type)) != family:
-            break
-        bottom -= 1
-    else:
-        return []  # Never guess which segment is the root.
-
-    chosen = []
-    y = bottom
-    for _ in range(MAX_VERTICAL_SCAN):
-        y += 1
-        try:
+    def get_family(x: int, y: int, z: int) -> str | None:
+        point = (x, y, z)
+        if point not in cache:
+            if len(cache) >= 12000:
+                raise RuntimeError("plant search budget exhausted")
             block = dimension.get_block_at(x, y, z)
+            cache[point] = VERTICAL_PLANTS.get(str(block.type)) if block is not None else None
+        return cache[point]
+
+    def scan_column(x: int, y: int, z: int) -> tuple[int, int] | None:
+        try:
+            if get_family(x, y, z) != family:
+                return None
+            bottom = top = y
+            for _ in range(MAX_VERTICAL_SCAN):
+                if get_family(x, bottom - 1, z) != family:
+                    break
+                bottom -= 1
+            else:
+                return None
+            for _ in range(MAX_VERTICAL_SCAN):
+                if get_family(x, top + 1, z) != family:
+                    break
+                top += 1
+            else:
+                return None
+            return bottom, top
         except (ValueError, RuntimeError):
+            return None
+
+    origin = scan_column(sx, sy, sz)
+    if origin is None:
+        return []
+    harvest_roots = sy == origin[0]
+    queue = deque([(sx, sz, *origin)])
+    visited = {(sx, sz)}
+    selected: list[tuple[int, int, int]] = []
+    offsets = tuple((dx, dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1) if dx or dz)
+
+    while queue and len(selected) < max_blocks - 1:
+        x, z, bottom, top = queue.popleft()
+        for y in range(top, bottom - 1 if harvest_roots else bottom, -1):
+            point = (x, y, z)
+            if point != (sx, sy, sz):
+                selected.append(point)
+                if len(selected) == max_blocks - 1:
+                    break
+        if len(selected) == max_blocks - 1:
             break
-        if block is None or VERTICAL_PLANTS.get(str(block.type)) != family:
-            break
-        if y != seed.y:
-            chosen.append((x, y, z))
-        if len(chosen) >= max_blocks - 1:
-            break
-    # Remove from the top down so lower supporting segments are removed last.
-    return chosen[::-1]
+        for dx, dz in offsets:
+            nx, nz = x + dx, z + dz
+            column = nx, nz
+            if column in visited:
+                continue
+            if max(abs(nx - sx), abs(nz - sz)) > radius or (nx >> 4, nz >> 4) not in loaded_chunks:
+                continue
+            for y in range(top, bottom - 1, -1):
+                try:
+                    adjacent = get_family(nx, y, nz)
+                except (ValueError, RuntimeError):
+                    break
+                if adjacent == family:
+                    bounds = scan_column(nx, y, nz)
+                    if bounds is not None:
+                        visited.add(column)
+                        queue.append((nx, nz, *bounds))
+                    break
+    return selected
 
 
 def find_connected(seed, max_blocks: int | None = None) -> list[tuple[int, int, int]]:
