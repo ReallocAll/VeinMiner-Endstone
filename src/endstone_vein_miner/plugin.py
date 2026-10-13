@@ -17,7 +17,7 @@ from .settings import SettingsStore
 
 class VeinMinerPlugin(Plugin):
     api_version = "0.11"
-    version = "2.0.3+server.1"
+    version = "2.0.3+server.2"
 
     commands = {
         "vm": {
