@@ -58,3 +58,15 @@ def test_barehand_leaves_use_independent_random_drops():
     assert all(r.item == "minecraft:stick" for drops in mangrove for r in drops)
     assert any(r.item == "minecraft:azalea" for _ in range(200) for r in leaf_rewards("minecraft:azalea_leaves", rng))
     assert leaf_rewards("minecraft:stone", rng) == ()
+
+
+def test_bedrock_lit_redstone_ores_never_drop_unobtainable_lit_blocks():
+    rng = Random(43)
+    for block_id, silk_item in (
+        ("minecraft:lit_redstone_ore", "minecraft:redstone_ore"),
+        ("minecraft:lit_deepslate_redstone_ore", "minecraft:deepslate_redstone_ore"),
+    ):
+        normal = reward_for(block_id, rng)
+        assert normal.item == "minecraft:redstone"
+        assert 4 <= normal.count <= 5
+        assert reward_for(block_id, rng, silk_touch=True) == Reward(silk_item, 1, 0)

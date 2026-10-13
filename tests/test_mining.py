@@ -133,3 +133,49 @@ def test_hand_can_chain_leaves_when_player_enables_leaf_category():
     assert not should_scan(settings, False, "minecraft:oak_leaves", "minecraft:air")
     assert not should_scan(settings, True, "minecraft:diamond_ore", "minecraft:air")
     assert not should_scan(settings, True, "minecraft:oak_log", "minecraft:air")
+
+
+def test_normal_and_deepslate_ore_variants_share_a_vein_across_loaded_chunks():
+    world = FakeDimension(
+        {
+            (15, 64, 2): "minecraft:iron_ore",
+            (16, 64, 2): "minecraft:deepslate_iron_ore",
+            (17, 65, 3): "minecraft:iron_ore",
+            (17, 64, 3): "minecraft:gold_ore",
+        }
+    )
+    world.loaded_chunks = [SimpleNamespace(x=0, z=0), SimpleNamespace(x=1, z=0)]
+    found = find_connected(seed_at(world, (15, 64, 2)))
+    assert set(found) == {(16, 64, 2), (17, 65, 3)}
+    assert (17, 64, 3) not in found
+    assert all(x >> 4 in (0, 1) for x, _, _ in world.reads)
+
+
+def test_bedrock_lit_redstone_ids_are_the_same_ore_family():
+    from endstone_vein_miner.mining import ore_family
+
+    ids = (
+        "minecraft:redstone_ore",
+        "minecraft:lit_redstone_ore",
+        "minecraft:deepslate_redstone_ore",
+        "minecraft:lit_deepslate_redstone_ore",
+    )
+    assert {ore_family(identifier) for identifier in ids} == {"redstone_ore"}
+    assert all(correct_tool(identifier, "minecraft:iron_pickaxe") for identifier in ids)
+    world = FakeDimension({(3 + i, 60, 3): name for i, name in enumerate(ids)})
+    assert find_connected(seed_at(world, (3, 60, 3))) == [(4, 60, 3), (5, 60, 3), (6, 60, 3)]
+
+
+def test_ore_variants_never_bridge_through_filler_or_load_unloaded_chunks():
+    world = FakeDimension(
+        {
+            (15, 64, 2): "minecraft:iron_ore",
+            (16, 64, 2): "minecraft:tuff",
+            (17, 64, 2): "minecraft:deepslate_iron_ore",
+            (15, 65, 2): "minecraft:deepslate_iron_ore",
+            (15, 66, 2): "minecraft:gold_ore",
+        }
+    )
+    world.loaded_chunks = [SimpleNamespace(x=0, z=0)]
+    assert find_connected(seed_at(world, (15, 64, 2))) == [(15, 65, 2)]
+    assert not any(x >= 16 for x, _, _ in world.reads)

@@ -245,3 +245,46 @@ def test_tree_canopy_clear_keeps_axe_durability(monkeypatch):
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, audit, logger, canopy=True) == 2
     assert player.inventory.item_in_main_hand.item_meta.damage == 0
+
+
+def test_mixed_stone_and_deepslate_ores_audit_actual_ids_and_drop_correctly(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+    blocks[positions[1]].type = "minecraft:deepslate_iron_ore"
+    audited = []
+
+    class Audit:
+        def prepare(self, player_name, dimension, point, block_id, states):
+            audited.append((point, block_id))
+            return "row"
+
+        def finish(self, *args, **kwargs):
+            return None
+
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    assert engine.mine_extra(player, "minecraft:iron_ore", positions, guard, Audit(), logger) == 2
+    assert audited == [
+        (positions[0], "minecraft:iron_ore"),
+        (positions[1], "minecraft:deepslate_iron_ore"),
+    ]
+    assert [item for _, (item, count) in drops] == ["minecraft:raw_iron", "minecraft:raw_iron"]
+    assert all(block.type == "minecraft:air" for block in blocks.values())
+
+
+def test_mixed_ore_mining_skips_different_families_even_if_passed_as_targets(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    events = []
+    player, blocks, positions, drops = make_world(events)
+    blocks[positions[1]].type = "minecraft:gold_ore"
+    audited = []
+    audit = SimpleNamespace(
+        prepare=lambda *args: audited.append(args) or "row",
+        finish=lambda *args, **kwargs: None,
+    )
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    assert engine.mine_extra(player, "minecraft:iron_ore", positions, guard, audit, logger) == 1
+    assert len(audited) == 1
+    assert blocks[positions[1]].type == "minecraft:gold_ore"
