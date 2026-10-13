@@ -52,13 +52,16 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
 
     loaded = importlib.import_module("endstone_vein_miner.plugin")
     cls = loaded.VeinMinerPlugin
-    assert cls.commands["vm"]["usages"] == ["/vm [gui|on|off|reload]"]
+    assert cls.commands["vm"]["usages"] == ["/vm [gui|on|off|status|reload]"]
     assert cls.commands["vm"]["aliases"] == ["veinminer"]
     assert cls.permissions["veinminer.command"]["default"] is True
     assert cls.permissions["veinminer.reload"]["default"] == "op"
 
     plugin = cls()
     plugin.settings = SettingsStore(tmp_path / "players.json")
+    from endstone_vein_miner.server_limits import ServerLimits
+
+    plugin.limits = ServerLimits(tmp_path / "server.json")
     plugin.logger = SimpleNamespace(error=lambda _: None)
     player = Player()
     assert plugin.on_command(player, None, ["on"])

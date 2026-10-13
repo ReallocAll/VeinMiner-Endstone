@@ -14,6 +14,7 @@ def test_first_join_defaults_are_safe(tmp_path):
         "ores": True,
         "logs": False,
         "leaves": False,
+        "plants": False,
     }
     assert not store.enabled("uuid-a")
     assert not store.path.exists()
