@@ -13,18 +13,27 @@ MAX_LEAF_BRIDGE = 2
 MAX_BLOCKER_DEPTH = 4
 
 
-def leaf_family(log_id: str) -> str | None:
+def leaf_family(log_id: str) -> frozenset[str]:
+    """Candidate natural leaves for a timber family, including colored poplars."""
+    if log_id.removeprefix("minecraft:").removeprefix("stripped_").startswith("poplar_"):
+        return frozenset(
+            {"minecraft:red_poplar_leaves", "minecraft:orange_poplar_leaves", "minecraft:yellow_poplar_leaves"}
+        )
     wood = log_id.removeprefix("minecraft:").removeprefix("stripped_")
     for suffix in ("_log", "_wood"):
         if wood.endswith(suffix):
             family = wood.removesuffix(suffix)
             result = f"minecraft:{family}_leaves"
-            return result if result in LEAVES else None
-    return None
+            return frozenset({result}) if result in LEAVES else frozenset()
+    return frozenset()
 
 
-def is_natural_leaf(block, expected_id: str | None = None) -> bool:
-    if block is None or (expected_id is not None and str(block.type) != expected_id):
+def is_natural_leaf(block, expected_id: str | frozenset[str] | None = None) -> bool:
+    if block is None:
+        return False
+    if isinstance(expected_id, frozenset) and str(block.type) not in expected_id:
+        return False
+    if isinstance(expected_id, str) and str(block.type) != expected_id:
         return False
     if str(block.type) not in LEAVES:
         return False
@@ -34,9 +43,9 @@ def is_natural_leaf(block, expected_id: str | None = None) -> bool:
         return False
 
 
-def find_tree(seed) -> list[tuple[int, int, int]]:
+def find_tree(seed, max_blocks: int = MAX_TREE_LOGS) -> list[tuple[int, int, int]]:
     block_id = str(seed.type)
-    if block_id not in LOGS:
+    if block_id not in LOGS or not 2 <= max_blocks <= 256:
         return []
     dimension = seed.dimension
     origin = (seed.x, seed.y, seed.z)
@@ -69,7 +78,7 @@ def find_tree(seed) -> list[tuple[int, int, int]]:
         cached[pos] = block
         return block
 
-    while queue and len(found) < MAX_TREE_LOGS - 1 and len(cached) < MAX_TREE_READS:
+    while queue and len(found) < max_blocks - 1 and len(cached) < MAX_TREE_READS:
         source = queue.popleft()
         for dx, dy, dz in NEIGHBORS:
             point = (source[0] + dx, source[1] + dy, source[2] + dz)
@@ -82,13 +91,13 @@ def find_tree(seed) -> list[tuple[int, int, int]]:
                     queue.append(point)
                     found.append(point)
                 continue
-            if leaf_id is None or point in leaf_seen or not is_natural_leaf(block, leaf_id):
+            if not leaf_id or point in leaf_seen or not is_natural_leaf(block, leaf_id):
                 continue
             if point[1] < origin[1] + 2:
                 continue
             leaf_seen.add(point)
             pending = deque([(point, 1)])
-            while pending and len(found) < MAX_TREE_LOGS - 1 and len(cached) < MAX_TREE_READS:
+            while pending and len(found) < max_blocks - 1 and len(cached) < MAX_TREE_READS:
                 leaf_pos, depth = pending.popleft()
                 for ox, oy, oz in NEIGHBORS:
                     neighbour = (leaf_pos[0] + ox, leaf_pos[1] + oy, leaf_pos[2] + oz)

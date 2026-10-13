@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from random import Random
 
-from .mining import LEAVES, LOGS, ORE_TIERS
+from .mining import LEAVES, LOGS, ORE_TIERS, PLANTS
 
 
 @dataclass(frozen=True)
@@ -77,6 +77,10 @@ def leaf_rewards(block_id: str, rng: Random) -> tuple[Reward, ...]:
         sapling = f"minecraft:{leaf}_sapling"
 
     results = []
+    if leaf in {"red_poplar", "orange_poplar", "yellow_poplar"}:
+        sapling = "minecraft:poplar_sapling"
+    if leaf == "azalea_leaves_flowered" or block_id == "minecraft:azalea_leaves_flowered":
+        sapling = "minecraft:flowering_azalea"
     if sapling and rng.random() < (0.025 if leaf == "jungle" else 0.05):
         results.append(Reward(sapling, 1, 0))
     if rng.random() < 0.02:
@@ -84,3 +88,23 @@ def leaf_rewards(block_id: str, rng: Random) -> tuple[Reward, ...]:
     if leaf in {"oak", "dark_oak"} and rng.random() < 0.005:
         results.append(Reward("minecraft:apple", 1, 0))
     return tuple(results)
+
+
+def plant_rewards(block_id: str, states: dict[str, object], rng: Random) -> tuple[Reward, ...] | None:
+    """Hand harvesting for simple one-block plants; never invent crop loot."""
+    if block_id not in PLANTS:
+        return None
+    if block_id == "minecraft:shelf_mushroom":
+        growth = states.get("growth")
+        if type(growth) is not int:
+            return None
+        return (Reward(block_id, 2 if growth >= 3 else 1, 0),)
+    if block_id in {"minecraft:short_grass", "minecraft:short_dry_grass", "minecraft:tall_dry_grass"}:
+        return (Reward("minecraft:wheat_seeds", 1, 0),) if rng.random() < 0.125 else ()
+    if block_id == "minecraft:nether_sprouts":
+        return ()
+    if block_id == "minecraft:reeds":
+        return (Reward("minecraft:sugar_cane", 1, 0),)
+    if block_id == "minecraft:kelp_plant":
+        return (Reward("minecraft:kelp", 1, 0),)
+    return (Reward(block_id, 1, 0),)

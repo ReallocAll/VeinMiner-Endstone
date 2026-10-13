@@ -28,7 +28,7 @@ ORE_TIERS.update(
     }
 )
 ORE_TIERS["lit_deepslate_redstone_ore"] = ORE_TIERS["redstone_ore"]
-WOOD_TYPES = ("oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak")
+WOOD_TYPES = ("oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak", "poplar")
 LOGS = {f"minecraft:{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")}
 LOGS.update({f"minecraft:stripped_{wood}_{form}" for wood in WOOD_TYPES for form in ("log", "wood")})
 LOGS.update(
@@ -41,7 +41,47 @@ LOGS.update(
 )
 LOGS.update({"minecraft:bamboo_block", "minecraft:stripped_bamboo_block"})
 LEAVES = {f"minecraft:{wood}_leaves" for wood in WOOD_TYPES}
-LEAVES.update({"minecraft:azalea_leaves", "minecraft:flowering_azalea_leaves"})
+LEAVES.update(
+    {
+        "minecraft:azalea_leaves",
+        "minecraft:azalea_leaves_flowered",
+        "minecraft:flowering_azalea_leaves",
+        "minecraft:red_poplar_leaves",
+        "minecraft:orange_poplar_leaves",
+        "minecraft:yellow_poplar_leaves",
+    }
+)
+# Simple single-block vegetation with defined manual loot. Stateful crops, double-
+# height plants and block entities are intentionally excluded until vanilla loot is available.
+PLANTS = {
+    "minecraft:bamboo",
+    "minecraft:cactus",
+    "minecraft:reeds",
+    "minecraft:kelp",
+    "minecraft:kelp_plant",
+    "minecraft:brown_mushroom",
+    "minecraft:red_mushroom",
+    "minecraft:red_shrub",
+    "minecraft:shelf_mushroom",
+    "minecraft:short_grass",
+    "minecraft:short_dry_grass",
+    "minecraft:tall_dry_grass",
+    "minecraft:nether_sprouts",
+    "minecraft:dandelion",
+    "minecraft:poppy",
+    "minecraft:blue_orchid",
+    "minecraft:allium",
+    "minecraft:azure_bluet",
+    "minecraft:red_tulip",
+    "minecraft:orange_tulip",
+    "minecraft:white_tulip",
+    "minecraft:pink_tulip",
+    "minecraft:oxeye_daisy",
+    "minecraft:cornflower",
+    "minecraft:lily_of_the_valley",
+    "minecraft:wither_rose",
+}
+
 TIERS = {"wooden": 0, "golden": 0, "stone": 1, "copper": 1, "iron": 2, "diamond": 3, "netherite": 4}
 FACES = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
 NEIGHBORS = FACES + tuple(
@@ -72,6 +112,8 @@ def block_category(block_id: str) -> str | None:
         return "logs"
     if block_id in LEAVES:
         return "leaves"
+    if block_id in PLANTS:
+        return "plants"
     return None
 
 
@@ -81,6 +123,8 @@ def correct_tool(block_id: str, item_id: str) -> bool:
         return False
     if category == "leaves":
         return item_id in {"minecraft:shears", "minecraft:air"}
+    if category == "plants":
+        return item_id == "minecraft:air" or item_id.endswith(("_axe", "_hoe", "_sword", "_shears")) or item_id == "minecraft:shears"
     required = "pickaxe" if category == "ores" else "axe"
     prefix, separator, kind = item_id.removeprefix("minecraft:").rpartition("_")
     if not separator or kind != required:
@@ -102,31 +146,36 @@ def should_scan(settings: dict[str, bool], sneaking: bool, block_id: str, item_i
     return correct_tool(block_id, item_id)
 
 
-def find_connected(seed) -> list[tuple[int, int, int]]:
+def find_connected(seed, max_blocks: int | None = None) -> list[tuple[int, int, int]]:
     """Find at most 23 additional same-type blocks, inside the seed's loaded chunk.
 
     Read-only by design. The result never grants permission to remove a block.
     """
-    block_id = seed.type
+    block_id = str(seed.type)
     category = block_category(block_id)
+    if max_blocks is None:
+        max_blocks = 160 if category == "logs" else MAX_BLOCKS
+    if type(max_blocks) is not int or not 2 <= max_blocks <= 256:
+        return []
     if category is None:
         return []
     if category == "logs":
         from .tree import find_tree
 
-        return find_tree(seed)
+        return find_tree(seed, max_blocks=max_blocks)
     dimension = seed.dimension
     start = seed.x, seed.y, seed.z
     queue = deque([start])
     seen = {start}
     selected = []
     offsets = NEIGHBORS if category == "ores" else FACES
+    radius = max(MAX_RADIUS, min(16, int((max_blocks ** (1 / 3)) * 2)))
     chunk_x, chunk_z = seed.x >> 4, seed.z >> 4
     loaded = getattr(dimension, "loaded_chunks", None)
     loaded_chunks = {(chunk.x, chunk.z) for chunk in loaded} if loaded is not None else {(chunk_x, chunk_z)}
     family = ore_family(block_id) if category == "ores" else None
 
-    while queue and len(selected) < MAX_BLOCKS - 1:
+    while queue and len(selected) < max_blocks - 1 and len(seen) < 12000:
         x, y, z = queue.popleft()
         for dx, dy, dz in offsets:
             nx, ny, nz = x + dx, y + dy, z + dz
@@ -135,7 +184,7 @@ def find_connected(seed) -> list[tuple[int, int, int]]:
                 continue
             seen.add(point)
             if (
-                max(abs(nx - start[0]), abs(ny - start[1]), abs(nz - start[2])) > MAX_RADIUS
+                max(abs(nx - start[0]), abs(ny - start[1]), abs(nz - start[2])) > radius
                 or (nx >> 4, nz >> 4) not in loaded_chunks
             ):
                 continue
@@ -149,6 +198,6 @@ def find_connected(seed) -> list[tuple[int, int, int]]:
             ):
                 selected.append(point)
                 queue.append(point)
-                if len(selected) == MAX_BLOCKS - 1:
+                if len(selected) == max_blocks - 1:
                     break
     return selected
