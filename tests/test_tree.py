@@ -87,12 +87,7 @@ def test_tree_selection_respects_loaded_chunk_boundary():
 
 
 def test_giant_two_by_two_trunk_all_120_logs_found_with_bounded_reads():
-    blocks = {
-        (x, y, z): "minecraft:jungle_log"
-        for x in (2, 3)
-        for z in (2, 3)
-        for y in range(64, 94)
-    }
+    blocks = {(x, y, z): "minecraft:jungle_log" for x in (2, 3) for z in (2, 3) for y in range(64, 94)}
     world = World(blocks)
     found = find_tree(seed(world))
     assert len(found) == 119
