@@ -30,6 +30,11 @@
 - 为兼容触屏设备，是否蹲下只在原始破坏事件判断一次，后续 tick 不再重新要求玩家保持蹲下。
 - 支持 Python 3.12–3.15 / Endstone 0.11；源仓库仅运行 lint/tests/build，真实 BDS 启停在 `ReallocAll/bds-test-lab` 独立验证。
 
-## 当前验收状态
+## 正式版本
 
-此 PR 仍为 Draft。真实玩家在移动端触屏操作、全部原版植物掉落、领地跨界、插件并发以及 MSPT 实测尚未完成。BDS 启停或 mock 单测成功不代表上述功能已通过实际体验验证。
+- [v2.0.3+server.10 — GitHub Release](https://github.com/ReallocAll/VeinMiner-Endstone/releases/tag/v2.0.3%2Bserver.10)
+- 将 Release 中的 `.whl` 放到服务器 `plugins/` 目录，删除旧版 VeinMiner Wheel 后重启 Endstone。
+
+## 验证状态
+
+已通过 Python 3.12–3.15 单元测试、Endstone API 导入检查与独立 `bds-test-lab` 的真实 BDS 启停测试。移动端实际挖掘、复杂植物的原版掉落、真实领地跨界和 256 块上限下的 MSPT 仍需实机验证。
