@@ -9,7 +9,7 @@ from endstone_vein_miner.audit import COLUMNS, TianyanAudit, format_states
 def create_audit(tmp_path):
     root = tmp_path / "tianyan_data"
     root.mkdir()
-    (root / "config.json").write_text(json.dumps({"database_type": "sqlite"}), encoding="utf-8")
+    (root / "config.json").write_text(json.dumps({"database_type": "sqlite", "log_block_break": True}), encoding="utf-8")
     path = root / "ty_data.db"
     with sqlite3.connect(path) as db:
         db.execute(
@@ -40,7 +40,7 @@ def test_tianyan_precommit_and_completion(tmp_path):
 
 def test_tianyan_disabled_for_unknown_backend_and_schema(tmp_path):
     audit = create_audit(tmp_path)
-    audit.config_path.write_text(json.dumps({"database_type": "mysql"}), encoding="utf-8")
+    audit.config_path.write_text(json.dumps({"database_type": "mysql", "log_block_break": True}), encoding="utf-8")
     assert not audit.refresh()
     with pytest.raises(RuntimeError):
         audit.prepare("Alice", "overworld", (1, 70, 2), "minecraft:diamond_ore", "{}")
@@ -73,3 +73,12 @@ def test_tianyan_state_suffix_is_bedrock_setblock_compatible():
         format_states({"invalid key": 3})
     with pytest.raises(ValueError):
         format_states({"foo": [1, 2]})
+
+def test_tianyan_break_logging_disabled_blocks_extra_mining(tmp_path):
+    audit = create_audit(tmp_path)
+    audit.config_path.write_text(
+        json.dumps({"database_type": "sqlite", "log_block_break": False}), encoding="utf-8"
+    )
+    assert not audit.refresh()
+    with pytest.raises(RuntimeError):
+        audit.prepare("Alice", "overworld", (1, 70, 2), "minecraft:diamond_ore", "")

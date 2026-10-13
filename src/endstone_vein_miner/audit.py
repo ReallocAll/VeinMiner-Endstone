@@ -72,6 +72,8 @@ class TianyanAudit:
             config = json.loads(self.config_path.read_text(encoding="utf-8"))
             if not isinstance(config, dict) or config.get("database_type") != "sqlite":
                 raise ValueError("Tianyan 未启用 SQLite 后端")
+            if config.get("log_block_break") is not True:
+                raise ValueError("Tianyan 方块破坏日志功能已关闭")
             db = sqlite3.connect(self.db_path, timeout=0.05)
             try:
                 columns = tuple(row[1] for row in db.execute("PRAGMA table_info(LOGDATA)"))
