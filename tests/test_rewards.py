@@ -94,14 +94,9 @@ def test_bedrock_crop_fortune_uses_binomial_seed_rolls():
 
     rng = Random(2026)
     trials = 5000
-    base = [
-        plant_rewards("minecraft:wheat", {"growth": 7}, rng)
-        for _ in range(trials)
-    ]
-    enhanced = [
-        plant_rewards("minecraft:wheat", {"growth": 7}, rng, fortune=3)
-        for _ in range(trials)
-    ]
+    base = [plant_rewards("minecraft:wheat", {"growth": 7}, rng) for _ in range(trials)]
+    enhanced = [plant_rewards("minecraft:wheat", {"growth": 7}, rng, fortune=3) for _ in range(trials)]
+
     def count_seeds(drops):
         return sum(reward.count for reward in drops if reward.item == "minecraft:wheat_seeds")
 
@@ -110,29 +105,19 @@ def test_bedrock_crop_fortune_uses_binomial_seed_rolls():
     assert 3.0 < sum(map(count_seeds, enhanced)) / trials < 3.4
     assert max(map(count_seeds, base)) <= 3
     assert max(map(count_seeds, enhanced)) <= 6
-    assert plant_rewards("minecraft:wheat", {"growth": 0}, rng, fortune=3) == (
-        Reward("minecraft:wheat_seeds", 1, 0),
-    )
+    assert plant_rewards("minecraft:wheat", {"growth": 0}, rng, fortune=3) == (Reward("minecraft:wheat_seeds", 1, 0),)
 
 
 def test_bedrock_carrot_potato_fortune_ranges_and_secondary_drops():
     from endstone_vein_miner.rewards import plant_rewards
 
     rng = Random(512)
-    counts = [
-        plant_rewards("minecraft:carrots", {"growth": 7}, rng, fortune=3)[0].count
-        for _ in range(3000)
-    ]
+    counts = [plant_rewards("minecraft:carrots", {"growth": 7}, rng, fortune=3)[0].count for _ in range(3000)]
     assert 5.4 < sum(counts) / len(counts) < 6.0
     assert min(counts) >= 1 and max(counts) <= 10
-    potatoes = [
-        plant_rewards("minecraft:potatoes", {"growth": 7}, rng)
-        for _ in range(3000)
-    ]
+    potatoes = [plant_rewards("minecraft:potatoes", {"growth": 7}, rng) for _ in range(3000)]
     assert 30 < sum(any(reward.item == "minecraft:poisonous_potato" for reward in drops) for drops in potatoes) < 100
-    assert plant_rewards("minecraft:potatoes", {"growth": 4}, rng, fortune=3) == (
-        Reward("minecraft:potato", 1, 0),
-    )
+    assert plant_rewards("minecraft:potatoes", {"growth": 4}, rng, fortune=3) == (Reward("minecraft:potato", 1, 0),)
 
 
 def test_bedrock_berry_state_nether_wart_and_decorative_shear_loot():
@@ -147,12 +132,9 @@ def test_bedrock_berry_state_nether_wart_and_decorative_shear_loot():
         Reward("minecraft:nether_wart", 1, 0),
     )
     assert all(
-        2 <= plant_rewards("minecraft:nether_wart", {"age": 3}, rng, fortune=3)[0].count <= 7
-        for _ in range(100)
+        2 <= plant_rewards("minecraft:nether_wart", {"age": 3}, rng, fortune=3)[0].count <= 7 for _ in range(100)
     )
-    assert plant_rewards("minecraft:short_grass", {}, rng, shears=True) == (
-        Reward("minecraft:short_grass", 1, 0),
-    )
+    assert plant_rewards("minecraft:short_grass", {}, rng, shears=True) == (Reward("minecraft:short_grass", 1, 0),)
     assert plant_rewards("minecraft:short_dry_grass", {}, rng) == ()
     assert plant_rewards("minecraft:short_dry_grass", {}, rng, silk_touch=True) == (
         Reward("minecraft:short_dry_grass", 1, 0),
