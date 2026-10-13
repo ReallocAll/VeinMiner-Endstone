@@ -87,3 +87,96 @@ def test_leaf_drop_helper_supports_fortune_chances_independently_of_axe_behavior
     assert enhanced["minecraft:oak_sapling"] > basic["minecraft:oak_sapling"]
     assert enhanced["minecraft:stick"] > basic["minecraft:stick"]
     assert enhanced["minecraft:apple"] > basic["minecraft:apple"]
+
+
+def test_bedrock_crop_fortune_uses_binomial_seed_rolls():
+    from endstone_vein_miner.rewards import plant_rewards
+
+    rng = Random(2026)
+    trials = 5000
+    base = [
+        plant_rewards("minecraft:wheat", {"growth": 7}, rng)
+        for _ in range(trials)
+    ]
+    enhanced = [
+        plant_rewards("minecraft:wheat", {"growth": 7}, rng, fortune=3)
+        for _ in range(trials)
+    ]
+    def count_seeds(drops):
+        return sum(reward.count for reward in drops if reward.item == "minecraft:wheat_seeds")
+
+    assert all(drops[0] == Reward("minecraft:wheat", 1, 0) for drops in base + enhanced)
+    assert 1.45 < sum(map(count_seeds, base)) / trials < 1.75
+    assert 3.0 < sum(map(count_seeds, enhanced)) / trials < 3.4
+    assert max(map(count_seeds, base)) <= 3
+    assert max(map(count_seeds, enhanced)) <= 6
+    assert plant_rewards("minecraft:wheat", {"growth": 0}, rng, fortune=3) == (
+        Reward("minecraft:wheat_seeds", 1, 0),
+    )
+
+
+def test_bedrock_carrot_potato_fortune_ranges_and_secondary_drops():
+    from endstone_vein_miner.rewards import plant_rewards
+
+    rng = Random(512)
+    counts = [
+        plant_rewards("minecraft:carrots", {"growth": 7}, rng, fortune=3)[0].count
+        for _ in range(3000)
+    ]
+    assert 5.4 < sum(counts) / len(counts) < 6.0
+    assert min(counts) >= 1 and max(counts) <= 10
+    potatoes = [
+        plant_rewards("minecraft:potatoes", {"growth": 7}, rng)
+        for _ in range(3000)
+    ]
+    assert 30 < sum(any(reward.item == "minecraft:poisonous_potato" for reward in drops) for drops in potatoes) < 100
+    assert plant_rewards("minecraft:potatoes", {"growth": 4}, rng, fortune=3) == (
+        Reward("minecraft:potato", 1, 0),
+    )
+
+
+def test_bedrock_berry_state_nether_wart_and_decorative_shear_loot():
+    from endstone_vein_miner.rewards import plant_rewards
+
+    rng = Random(7)
+    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 3}, rng) == ()
+    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 7}, rng)[0].count in (2, 3)
+    assert plant_rewards("minecraft:sweet_berry_bush", {"growth": 7}, rng, fortune=3)[0].count in range(2, 7)
+    assert plant_rewards("minecraft:sweet_berry_bush", {"age": 3}, rng) is None
+    assert plant_rewards("minecraft:nether_wart", {"age": 0}, rng, fortune=3) == (
+        Reward("minecraft:nether_wart", 1, 0),
+    )
+    assert all(
+        2 <= plant_rewards("minecraft:nether_wart", {"age": 3}, rng, fortune=3)[0].count <= 7
+        for _ in range(100)
+    )
+    assert plant_rewards("minecraft:short_grass", {}, rng, shears=True) == (
+        Reward("minecraft:short_grass", 1, 0),
+    )
+    assert plant_rewards("minecraft:short_dry_grass", {}, rng) == ()
+    assert plant_rewards("minecraft:short_dry_grass", {}, rng, silk_touch=True) == (
+        Reward("minecraft:short_dry_grass", 1, 0),
+    )
+    assert plant_rewards("minecraft:nether_sprouts", {}, rng, shears=True) == (
+        Reward("minecraft:nether_sprouts", 1, 0),
+    )
+    assert plant_rewards("minecraft:nether_sprouts", {}, rng) == ()
+    assert plant_rewards("minecraft:kelp", {}, rng) == (Reward("minecraft:kelp", 1, 0),)
+    assert plant_rewards("minecraft:kelp_plant", {}, rng) == (Reward("minecraft:kelp", 1, 0),)
+
+
+def test_silk_touch_never_turns_crop_into_block_item():
+    from endstone_vein_miner.rewards import plant_rewards
+
+    rng = Random(16)
+    for crop, states in (
+        ("wheat", {"growth": 7}),
+        ("carrots", {"growth": 7}),
+        ("potatoes", {"growth": 7}),
+        ("beetroot", {"growth": 7}),
+        ("cocoa", {"age": 2}),
+        ("nether_wart", {"age": 3}),
+    ):
+        loot = plant_rewards(f"minecraft:{crop}", states, rng, silk_touch=True, fortune=3)
+        assert loot
+        assert all(reward.item != f"minecraft:{crop}" or crop == "nether_wart" for reward in loot)
