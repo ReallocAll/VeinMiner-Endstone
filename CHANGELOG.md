@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased — server specialization (incomplete, safety-gated)
+## 2.0.3+server.10 — Chinese server specialization
 
-- Replaced the legacy command, statistics, MySQL, update checker and destructive mining code with a small pure-Python settings and GUI implementation.
-- Added five UUID-keyed, persistent personal options with conservative defaults.
-- Added Chinese ActionForm and non-OP `/vm` / `/veinminer` access.
-- Removed unverified synthetic mining and manual reward paths rather than risking Territory protection or Tianyan audit bypass.
-- Documented missing public block authorization, auditing, and vanilla mining APIs. **Mining is not yet operational**.
-- Added focused unit tests and minimal lint / wheel CI.
-- Added a strictly bounded read-only connected-block BFS and exact block/tool allowlists, with regression tests; not wired to world mutation.\n - Safely skip invalid dimension-coordinate reads in bounded BFS and smoke-check native Endstone bindings in CI.\n
+- Added UUID-keyed Chinese GUI settings for mining, trees, leaves, plants and optional crouching.
+- Added an administrator-only GUI for persisted total block caps (default / 24 / 64 / 128 / 256).
+- Enabled bounded extra mining with per-block Territory checks, read-only chunk discovery and at most eight extra removals per tick.
+- Added mixed stone/deepslate ore matching, giant-tree diagonal branches, natural-leaf bridges and selected Bedrock 26.52 vegetation.
+- Leaf chains now require an axe. Normal leaves yield probabilistic saplings, sticks or apples; Fortune adjusts chances and Silk Touch yields leaf blocks. Bare hands and shears no longer activate leaf chains.
+- Improved Territory hot-path checks with per-dimension snapshots and pre-normalized claim bounds. Dynamic claim updates are still refreshed before each mining batch.
+- Handled unrelated enchantments without disabling chains and added guarded Fortune, Silk Touch, Unbreaking and held-tool Mending calculations.
+- Removed the runtime dependency on Tianyan; extra blocks are not written to Tianyan's audit log.
+- Added Python 3.12–3.15 CI and independent BDS startup verification through bds-test-lab only.
+
+Known limitations: exact native Bedrock drops for all exotic blocks, multi-slot Mending XP allocation, mobile-client mining and live claim-boundary behavior have not been end-to-end verified.
