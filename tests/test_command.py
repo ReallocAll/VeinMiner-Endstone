@@ -112,7 +112,11 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     plugin.settings.set("uuid-a", "axe_leaf_enchants", True)
     plugin._active_players.add("uuid-a")
     plugin._finish_break(
-        player, "uuid-a", "minecraft:iron_ore", "overworld", (2, 64, 2),
+        player,
+        "uuid-a",
+        "minecraft:iron_ore",
+        "overworld",
+        (2, 64, 2),
         [("minecraft:iron_ore", [(2, 64, 3)], False)],
     )
     assert harvested[-1]["axe_leaf_enchants"] is True
