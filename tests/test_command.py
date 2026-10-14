@@ -121,6 +121,39 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     )
     assert harvested[-1]["axe_leaf_enchants"] is True
 
+    # A failed extra write terminates the entire chain rather than scheduling
+    # all remaining batches and emitting dozens of identical errors.
+    plugin._last_scan = {}
+    plugin._active_players.add("uuid-a")
+    scheduled = []
+    plugin.server = SimpleNamespace(
+        scheduler=SimpleNamespace(run_task=lambda owner, callback, delay: scheduled.append(callback)),
+    )
+    attempts = []
+
+    def aborting_miner(*args, **kwargs):
+        attempts.append(kwargs)
+        kwargs["on_failure"]()
+        return 0
+
+    monkeypatch.setattr(loaded, "mine_extra", aborting_miner)
+    plugin._finish_break(
+        player,
+        "uuid-a",
+        "minecraft:iron_ore",
+        "overworld",
+        (2, 64, 2),
+        [
+            ("minecraft:iron_ore", [(2, 64, 3)], False),
+            ("minecraft:iron_ore", [(2, 64, 4)], False),
+        ],
+    )
+    assert len(attempts) == 1
+    assert attempts[0]["origin"] == (2, 64, 2)
+    assert not scheduled
+    assert "uuid-a" not in plugin._active_players
+    assert plugin._last_scan["uuid-a"] > 0
+
 
 def test_server_level_experimental_gate_removed():
     from pathlib import Path
