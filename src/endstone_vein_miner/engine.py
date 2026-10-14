@@ -57,13 +57,15 @@ def _award_experience(player, inventory, tool, meta, enchants: dict[str, int], e
 
 
 def mine_extra(
-    player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger, *, canopy: bool = False
+    player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger, *,
+    canopy: bool = False, axe_leaf_enchants: bool = False
 ) -> int:
     dimension = player.dimension
     inventory = player.inventory
     tool = inventory.item_in_main_hand
     tool_id = str(tool.type) if tool is not None else "minecraft:air"
     hand = tool_id == "minecraft:air"
+    axe_leaf_enchants = axe_leaf_enchants and tool_id.endswith("_axe")
     if not correct_tool(block_id, tool_id) and not (canopy and block_id.endswith("_leaves")):
         return 0
     meta = tool.item_meta if not hand else None
@@ -118,13 +120,14 @@ def mine_extra(
                 if rewards is None:
                     continue
             elif actual_id in LEAVES:
-                # Server policy: axes clear chained leaves as if broken by hand,
-                # ignoring their Silk Touch and Fortune enchantments. Only
-                # shears collect intact leaf blocks.
-                if tool_id == "minecraft:shears":
+                # Opt-in axe leaf enchantments; otherwise natural hand-break loot.
+                if tool_id == "minecraft:shears" or (
+                    axe_leaf_enchants and enchantments.get("minecraft:silk_touch")
+                ):
                     rewards = (Reward(actual_id, 1, 0),)
                 else:
-                    rewards = leaf_rewards(actual_id, rng)
+                    fortune = enchantments.get("minecraft:fortune", 0) if axe_leaf_enchants else 0
+                    rewards = leaf_rewards(actual_id, rng, fortune=fortune)
             else:
                 reward = reward_for(
                     actual_id,
@@ -161,7 +164,7 @@ def mine_extra(
             if (
                 meta is not None
                 and durability > 0
-                and (actual_id not in LEAVES or tool_id == "minecraft:shears")
+                and (actual_id not in LEAVES or tool_id == "minecraft:shears" or axe_leaf_enchants)
                 and not meta.is_unbreakable
                 and rng.randrange(enchantments.get("minecraft:unbreaking", 0) + 1) == 0
             ):
