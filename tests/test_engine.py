@@ -582,3 +582,69 @@ def test_plain_item_harvesting_does_not_require_durability(monkeypatch):
     assert engine.mine_extra(player, "minecraft:reeds", positions, guard, None, logger) == 2
     assert drops == [("place", ("minecraft:sugar_cane", 1))] * 2
     assert tool.item_meta.damage == 0
+
+
+def test_failed_block_removal_reports_player_dimension_position_and_final_type(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    target = positions[0]
+    blocks[target].set_type = lambda *args, **kwargs: None
+    errors = []
+    failures = []
+    logger = SimpleNamespace(error=errors.append, warning=errors.append)
+    guard = SimpleNamespace(can_break=lambda *args: True)
+
+    assert (
+        engine.mine_extra(
+            player,
+            "minecraft:iron_ore",
+            positions,
+            guard,
+            None,
+            logger,
+            origin=(1, 70, 0),
+            on_failure=lambda: failures.append(True),
+        )
+        == 0
+    )
+    assert failures == [True]
+    assert len(errors) == 1
+    message = errors[0]
+    assert "玩家=Alice" in message
+    assert "维度=overworld" in message
+    assert "坐标=(1, 70, 1)" in message
+    assert "起点=(1, 70, 0)" in message
+    assert "方块=minecraft:iron_ore" in message
+    assert "工具=minecraft:iron_pickaxe" in message
+    assert "阶段=移除方块" in message
+    assert "操作后=minecraft:iron_ore" in message
+    assert not drops
+    assert all(block.type == "minecraft:iron_ore" for block in blocks.values())
+
+
+def test_failed_drop_generation_notifies_owner_without_rollback(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    player, blocks, positions, drops = make_world([])
+    player.dimension.drop_item = lambda *args: (_ for _ in ()).throw(RuntimeError("spawn failed"))
+    failures = []
+    errors = []
+    logger = SimpleNamespace(error=errors.append, warning=errors.append)
+    guard = SimpleNamespace(can_break=lambda *args: True)
+
+    assert (
+        engine.mine_extra(
+            player,
+            "minecraft:iron_ore",
+            positions[:1],
+            guard,
+            None,
+            logger,
+            on_failure=lambda: failures.append(True),
+        )
+        == 1
+    )
+    assert failures == [True]
+    assert "坐标=(1, 70, 1)" in errors[0]
+    assert "阶段=掉落生成" in errors[0]
+    assert blocks[positions[0]].type == "minecraft:air"
+    assert not drops

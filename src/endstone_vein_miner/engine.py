@@ -13,6 +13,11 @@ def _new_item(item_id: str, count: int):
     return ItemStack(item_id, count)
 
 
+def _failure_context(player, dimension, pos, block_id, tool_id, canopy, origin) -> str:
+    source = f" 起点={origin}" if origin is not None else ""
+    return f"玩家={player.name} 维度={dimension.name} 坐标={pos} 方块={block_id} 工具={tool_id} 树冠={canopy}{source}"
+
+
 # Only enchantments that affect this plugin's settlement need interpretation.
 # Other enchantments are retained untouched in the original ItemMeta.
 MINING_LEVEL_CAPS = {
@@ -66,6 +71,8 @@ def mine_extra(
     *,
     canopy: bool = False,
     axe_leaf_enchants: bool = False,
+    origin: tuple[int, int, int] | None = None,
+    on_failure=None,
 ) -> int:
     dimension = player.dimension
     inventory = player.inventory
@@ -91,6 +98,9 @@ def mine_extra(
     vertical_family = VERTICAL_PLANTS.get(block_id)
     rng = Random()
     for x, y, z in positions[:8]:
+        actual_id = "<unknown>"
+        phase = "读取目标"
+
         live_tool = inventory.item_in_main_hand
         if hand:
             if live_tool is not None and str(live_tool.type) != "minecraft:air":
@@ -99,10 +109,11 @@ def mine_extra(
             break
         if not player.is_valid or str(player.dimension.name) != str(dimension.name):
             break
-        if not guard.can_break(str(player.name), bool(player.is_op), str(dimension.name), x, y, z):
-            continue
-
+        phase = "领地权限"
         try:
+            if not guard.can_break(str(player.name), bool(player.is_op), str(dimension.name), x, y, z):
+                continue
+            phase = "读取目标"
             block = dimension.get_block_at(x, y, z)
             actual_id = str(block.type)
             if family is not None:
@@ -115,6 +126,7 @@ def mine_extra(
                 continue
             if not correct_tool(actual_id, tool_id) and not (canopy and actual_id.endswith("_leaves")):
                 continue
+            phase = "计算掉落"
             if actual_id in PLANTS:
                 rewards = plant_rewards(
                     actual_id,
@@ -143,7 +155,9 @@ def mine_extra(
                 if reward is None:
                     break
                 rewards = (reward,)
+            phase = "保存方块状态"
             previous = block.capture_state()
+            phase = "准备审计"
             uid = (
                 audit.prepare(
                     str(player.name), str(dimension.name), (x, y, z), actual_id, format_states(block.data.block_states)
@@ -152,20 +166,27 @@ def mine_extra(
                 else None
             )
         except Exception as exc:
-            logger.warning(f"连锁挖掘预检失败，已停止: {exc}")
+            details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
+            logger.warning(f"连锁挖掘预检失败，已停止: {details} 阶段={phase} 原因={exc}")
+            if on_failure is not None:
+                on_failure()
             break
 
         old_damage = meta.damage if meta is not None else 0
         item_changed = False
+        phase = "移除方块"
         try:
             block.set_type("minecraft:air", apply_physics=False)
-            if block.type != "minecraft:air":
-                raise RuntimeError("方块未被移除")
+            after_id = str(block.type)
+            if after_id != "minecraft:air":
+                raise RuntimeError(f"方块未被移除（操作后={after_id}）")
+            phase = "确认审计"
             if audit is not None:
                 audit.finish(uid, success=True)
 
             # Settle tool wear before spawning drops or granting experience so a
             # failed inventory update can be rolled back without duplicating rewards.
+            phase = "结算工具耐久"
             if (
                 meta is not None
                 and durability > 0
@@ -183,9 +204,10 @@ def mine_extra(
                 item_changed = True
 
         except Exception as exc:
+            details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
             try:
-                if block.type == "minecraft:air" and not previous.update(force=True, apply_physics=False):
-                    logger.error(f"连锁挖掘回滚失败 ({x},{y},{z})")
+                if str(block.type) == "minecraft:air" and not previous.update(force=True, apply_physics=False):
+                    logger.error(f"连锁挖掘回滚失败: {details} 阶段={phase}")
                 if item_changed:
                     meta.damage = old_damage
                     tool.set_item_meta(meta)
@@ -193,8 +215,10 @@ def mine_extra(
                 if audit is not None:
                     audit.finish(uid, success=False)
             except Exception as rollback_exc:
-                logger.error(f"连锁挖掘回滚/审计失败 ({x},{y},{z}): {rollback_exc}")
-            logger.error(f"连锁挖掘执行失败，已停止: {exc}")
+                logger.error(f"连锁挖掘回滚/审计失败: {details} 阶段={phase} 原因={rollback_exc}")
+            logger.error(f"连锁挖掘执行失败，已停止: {details} 阶段={phase} 原因={exc}")
+            if on_failure is not None:
+                on_failure()
             break
 
         # Once an item spawn is attempted, the call may raise *after* creating
@@ -204,8 +228,11 @@ def mine_extra(
             for reward in rewards:
                 dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
         except Exception as exc:
-            logger.error(f"连锁挖掘掉落生成状态不明，停止且不回滚 ({x},{y},{z}): {exc}")
+            details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
+            logger.error(f"连锁挖掘掉落生成状态不明，停止且不回滚: {details} 阶段=掉落生成 原因={exc}")
             count += 1
+            if on_failure is not None:
+                on_failure()
             break
 
         # The drop has already been spawned and the block broken. An XP error
@@ -215,8 +242,11 @@ def mine_extra(
             try:
                 _award_experience(player, inventory, tool, meta, enchantments, experience)
             except Exception as exc:
-                logger.error(f"连锁挖掘经验/经验修补结算失败 ({x},{y},{z}): {exc}")
+                details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
+                logger.error(f"连锁挖掘经验/经验修补结算失败: {details} 阶段=经验结算 原因={exc}")
                 count += 1
+                if on_failure is not None:
+                    on_failure()
                 break
         count += 1
         if not hand and inventory.item_in_main_hand is None:
