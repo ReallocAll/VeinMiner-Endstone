@@ -118,12 +118,13 @@ def mine_extra(
                 if rewards is None:
                     continue
             elif actual_id in LEAVES:
-                # Shears and Silk Touch collect the block; Fortune affects
-                # the independent sapling, stick and apple rolls otherwise.
+                # Server policy: axes clear chained leaves as if broken by hand,
+                # ignoring their Silk Touch and Fortune enchantments. Only
+                # shears collect intact leaf blocks.
                 rewards = (
                     (Reward(actual_id, 1, 0),)
-                    if tool_id == "minecraft:shears" or enchantments.get("minecraft:silk_touch")
-                    else leaf_rewards(actual_id, rng, fortune=enchantments.get("minecraft:fortune", 0))
+                    if tool_id == "minecraft:shears"
+                    else leaf_rewards(actual_id, rng)
                 )
             else:
                 reward = reward_for(
