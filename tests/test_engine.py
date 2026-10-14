@@ -329,8 +329,7 @@ def test_axe_chained_leaves_ignore_silk_touch_and_fortune_even_for_canopy(monkey
             tool.item_meta.damage = 4
             tool.item_meta.has_enchants = bool(names)
             tool.item_meta.enchants = {
-                type("Enchantment", (), {"id": name})(): 3 if name == "minecraft:fortune" else 1
-                for name in names
+                type("Enchantment", (), {"id": name})(): 3 if name == "minecraft:fortune" else 1 for name in names
             }
             for block in blocks.values():
                 block.type = "minecraft:oak_leaves"
