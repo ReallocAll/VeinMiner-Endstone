@@ -169,7 +169,8 @@ def mine_extra(
                 else None
             )
         except Exception as exc:
-            logger.warning(f"连锁挖掘预检失败，已停止: {_failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)} 阶段={phase} 原因={exc}")
+            details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
+            logger.warning(f"连锁挖掘预检失败，已停止: {details} 阶段={phase} 原因={exc}")
             if on_failure is not None:
                 on_failure()
             break
@@ -206,9 +207,10 @@ def mine_extra(
                 item_changed = True
 
         except Exception as exc:
+            details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
             try:
                 if str(block.type) == "minecraft:air" and not previous.update(force=True, apply_physics=False):
-                    logger.error(f"连锁挖掘回滚失败: {_failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)} 阶段={phase}")
+                    logger.error(f"连锁挖掘回滚失败: {details} 阶段={phase}")
                 if item_changed:
                     meta.damage = old_damage
                     tool.set_item_meta(meta)
@@ -216,8 +218,8 @@ def mine_extra(
                 if audit is not None:
                     audit.finish(uid, success=False)
             except Exception as rollback_exc:
-                logger.error(f"连锁挖掘回滚/审计失败: {_failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)} 阶段={phase} 原因={rollback_exc}")
-            logger.error(f"连锁挖掘执行失败，已停止: {_failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)} 阶段={phase} 原因={exc}")
+                logger.error(f"连锁挖掘回滚/审计失败: {details} 阶段={phase} 原因={rollback_exc}")
+            logger.error(f"连锁挖掘执行失败，已停止: {details} 阶段={phase} 原因={exc}")
             if on_failure is not None:
                 on_failure()
             break
@@ -229,7 +231,8 @@ def mine_extra(
             for reward in rewards:
                 dimension.drop_item(previous.location, _new_item(reward.item, reward.count))
         except Exception as exc:
-            logger.error(f"连锁挖掘掉落生成状态不明，停止且不回滚: {_failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)} 阶段=掉落生成 原因={exc}")
+            details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
+            logger.error(f"连锁挖掘掉落生成状态不明，停止且不回滚: {details} 阶段=掉落生成 原因={exc}")
             count += 1
             if on_failure is not None:
                 on_failure()
@@ -242,7 +245,8 @@ def mine_extra(
             try:
                 _award_experience(player, inventory, tool, meta, enchantments, experience)
             except Exception as exc:
-                logger.error(f"连锁挖掘经验/经验修补结算失败: {_failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)} 阶段=经验结算 原因={exc}")
+                details = _failure_context(player, dimension, (x, y, z), actual_id, tool_id, canopy, origin)
+                logger.error(f"连锁挖掘经验/经验修补结算失败: {details} 阶段=经验结算 原因={exc}")
                 count += 1
                 if on_failure is not None:
                     on_failure()
