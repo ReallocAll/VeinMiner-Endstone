@@ -154,8 +154,14 @@ class VeinMinerPlugin(Plugin):
                 batch = positions[offset : offset + 8]
                 offset += len(batch)
                 total += mine_extra(
-                    player, block_id, batch, self._guard, None, self.logger,
-                    canopy=canopy, axe_leaf_enchants=values["axe_leaf_enchants"],
+                    player,
+                    block_id,
+                    batch,
+                    self._guard,
+                    None,
+                    self.logger,
+                    canopy=canopy,
+                    axe_leaf_enchants=values["axe_leaf_enchants"],
                 )
                 if offset >= len(positions):
                     index += 1
