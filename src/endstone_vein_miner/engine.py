@@ -57,8 +57,15 @@ def _award_experience(player, inventory, tool, meta, enchants: dict[str, int], e
 
 
 def mine_extra(
-    player, block_id: str, positions: list[tuple[int, int, int]], guard, audit, logger, *,
-    canopy: bool = False, axe_leaf_enchants: bool = False
+    player,
+    block_id: str,
+    positions: list[tuple[int, int, int]],
+    guard,
+    audit,
+    logger,
+    *,
+    canopy: bool = False,
+    axe_leaf_enchants: bool = False,
 ) -> int:
     dimension = player.dimension
     inventory = player.inventory
@@ -121,9 +128,7 @@ def mine_extra(
                     continue
             elif actual_id in LEAVES:
                 # Opt-in axe leaf enchantments; otherwise natural hand-break loot.
-                if tool_id == "minecraft:shears" or (
-                    axe_leaf_enchants and enchantments.get("minecraft:silk_touch")
-                ):
+                if tool_id == "minecraft:shears" or (axe_leaf_enchants and enchantments.get("minecraft:silk_touch")):
                     rewards = (Reward(actual_id, 1, 0),)
                 else:
                     fortune = enchantments.get("minecraft:fortune", 0) if axe_leaf_enchants else 0
