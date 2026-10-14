@@ -314,6 +314,7 @@ def test_axe_chained_leaves_ignore_silk_touch_and_fortune_even_for_canopy(monkey
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     guard = SimpleNamespace(can_break=lambda *args: True)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    calls = []
 
     for names in (
         (),
@@ -334,7 +335,7 @@ def test_axe_chained_leaves_ignore_silk_touch_and_fortune_even_for_canopy(monkey
             for block in blocks.values():
                 block.type = "minecraft:oak_leaves"
 
-            calls = []
+            calls.clear()
 
             def natural_drops(block_id, rng, *, fortune=0):
                 calls.append((block_id, fortune))
