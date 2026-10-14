@@ -112,10 +112,11 @@ def mine_extra(
             break
         if not player.is_valid or str(player.dimension.name) != str(dimension.name):
             break
-        if not guard.can_break(str(player.name), bool(player.is_op), str(dimension.name), x, y, z):
-            continue
-
+        phase = "领地权限"
         try:
+            if not guard.can_break(str(player.name), bool(player.is_op), str(dimension.name), x, y, z):
+                continue
+            phase = "读取目标"
             block = dimension.get_block_at(x, y, z)
             actual_id = str(block.type)
             if family is not None:
@@ -159,6 +160,7 @@ def mine_extra(
                 rewards = (reward,)
             phase = "保存方块状态"
             previous = block.capture_state()
+            phase = "准备审计"
             uid = (
                 audit.prepare(
                     str(player.name), str(dimension.name), (x, y, z), actual_id, format_states(block.data.block_states)
