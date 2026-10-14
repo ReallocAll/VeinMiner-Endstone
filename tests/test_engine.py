@@ -307,7 +307,7 @@ def test_axe_mines_leaves_with_normal_drops_but_bare_hand_does_not(monkeypatch):
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger) == 2
     assert all(block.type == "minecraft:air" for block in blocks.values())
     assert not any(item == "minecraft:oak_leaves" for _, (item, count) in drops)
-    assert player.inventory.item_in_main_hand.item_meta.damage == 2
+    assert player.inventory.item_in_main_hand.item_meta.damage == 0
 
 
 def test_axe_chained_leaves_ignore_silk_touch_and_fortune_even_for_canopy(monkeypatch):
@@ -344,7 +344,8 @@ def test_axe_chained_leaves_ignore_silk_touch_and_fortune_even_for_canopy(monkey
             assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger, canopy=canopy) == 2
             assert calls == [("minecraft:oak_leaves", 0)] * 2
             assert drops == [("place", ("minecraft:oak_sapling", 1))] * 2
-            assert tool.item_meta.damage == 6
+            assert tool.item_meta.damage == 4
+
 
 def test_shears_chain_intact_leaf_blocks_and_consume_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
@@ -376,7 +377,7 @@ def test_shears_durability_failure_rolls_back_leaf_and_skips_drops(monkeypatch):
     assert drops == []
 
 
-def test_tree_canopy_clear_consumes_axe_durability(monkeypatch):
+def test_tree_canopy_clear_keeps_axe_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     events = []
     player, blocks, positions, drops = make_world(events)
@@ -387,7 +388,7 @@ def test_tree_canopy_clear_consumes_axe_durability(monkeypatch):
     audit = SimpleNamespace(prepare=lambda *args: "row", finish=lambda *args, **kwargs: None)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
     assert engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, audit, logger, canopy=True) == 2
-    assert player.inventory.item_in_main_hand.item_meta.damage == 2
+    assert player.inventory.item_in_main_hand.item_meta.damage == 0
 
 
 def test_mixed_stone_and_deepslate_ores_audit_actual_ids_and_drop_correctly(monkeypatch):
