@@ -315,7 +315,12 @@ def test_axe_chained_leaves_ignore_silk_touch_and_fortune_even_for_canopy(monkey
     guard = SimpleNamespace(can_break=lambda *args: True)
     logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
 
-    for names in ((), ("minecraft:fortune",), ("minecraft:silk_touch",), ("minecraft:fortune", "minecraft:silk_touch")):
+    for names in (
+        (),
+        ("minecraft:fortune",),
+        ("minecraft:silk_touch",),
+        ("minecraft:fortune", "minecraft:silk_touch"),
+    ):
         for canopy in (False, True):
             player, blocks, positions, drops = make_world([])
             tool = player.inventory.item_in_main_hand
