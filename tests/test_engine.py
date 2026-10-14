@@ -584,7 +584,6 @@ def test_plain_item_harvesting_does_not_require_durability(monkeypatch):
     assert tool.item_meta.damage == 0
 
 
-
 def test_failed_block_removal_reports_player_dimension_position_and_final_type(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     player, blocks, positions, drops = make_world([])
@@ -595,10 +594,19 @@ def test_failed_block_removal_reports_player_dimension_position_and_final_type(m
     logger = SimpleNamespace(error=errors.append, warning=errors.append)
     guard = SimpleNamespace(can_break=lambda *args: True)
 
-    assert engine.mine_extra(
-        player, "minecraft:iron_ore", positions, guard, None, logger,
-        origin=(1, 70, 0), on_failure=lambda: failures.append(True),
-    ) == 0
+    assert (
+        engine.mine_extra(
+            player,
+            "minecraft:iron_ore",
+            positions,
+            guard,
+            None,
+            logger,
+            origin=(1, 70, 0),
+            on_failure=lambda: failures.append(True),
+        )
+        == 0
+    )
     assert failures == [True]
     assert len(errors) == 1
     message = errors[0]
@@ -623,10 +631,18 @@ def test_failed_drop_generation_notifies_owner_without_rollback(monkeypatch):
     logger = SimpleNamespace(error=errors.append, warning=errors.append)
     guard = SimpleNamespace(can_break=lambda *args: True)
 
-    assert engine.mine_extra(
-        player, "minecraft:iron_ore", positions[:1], guard, None, logger,
-        on_failure=lambda: failures.append(True),
-    ) == 1
+    assert (
+        engine.mine_extra(
+            player,
+            "minecraft:iron_ore",
+            positions[:1],
+            guard,
+            None,
+            logger,
+            on_failure=lambda: failures.append(True),
+        )
+        == 1
+    )
     assert failures == [True]
     assert "坐标=(1, 70, 1)" in errors[0]
     assert "阶段=掉落生成" in errors[0]
