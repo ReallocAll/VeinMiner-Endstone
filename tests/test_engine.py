@@ -347,6 +347,74 @@ def test_axe_chained_leaves_ignore_silk_touch_and_fortune_even_for_canopy(monkey
             assert tool.item_meta.damage == 4
 
 
+def test_opted_in_axe_leaves_apply_fortune_silk_touch_and_wear(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    calls = []
+
+    for names in ((), ("fortune",), ("silk_touch",), ("fortune", "silk_touch")):
+        for canopy in (False, True):
+            player, blocks, positions, drops = make_world([])
+            tool = player.inventory.item_in_main_hand
+            tool.type = FakeType("minecraft:diamond_axe")
+            tool.item_meta.damage = 4
+            tool.item_meta.has_enchants = bool(names)
+            tool.item_meta.enchants = {
+                type("Enchantment", (), {"id": f"minecraft:{name}"})(): 3 if name == "fortune" else 1 for name in names
+            }
+            for block in blocks.values():
+                block.type = "minecraft:oak_leaves"
+            calls.clear()
+
+            def controlled_drops(block_id, rng, *, fortune=0):
+                calls.append((block_id, fortune))
+                return (engine.Reward("minecraft:oak_sapling", 1, 0),)
+
+            monkeypatch.setattr(engine, "leaf_rewards", controlled_drops)
+            assert (
+                engine.mine_extra(
+                    player,
+                    "minecraft:oak_leaves",
+                    positions,
+                    guard,
+                    None,
+                    logger,
+                    canopy=canopy,
+                    axe_leaf_enchants=True,
+                )
+                == 2
+            )
+            if "silk_touch" in names:
+                assert calls == []
+                assert drops == [("place", ("minecraft:oak_leaves", 1))] * 2
+            else:
+                expected_fortune = 3 if "fortune" in names else 0
+                assert calls == [("minecraft:oak_leaves", expected_fortune)] * 2
+                assert drops == [("place", ("minecraft:oak_sapling", 1))] * 2
+            assert tool.item_meta.damage == 6
+
+
+def test_axe_leaf_opt_in_respects_unbreaking(monkeypatch):
+    monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
+    monkeypatch.setattr(engine, "leaf_rewards", lambda *args, **kwargs: ())
+    monkeypatch.setattr(engine, "Random", lambda: SimpleNamespace(randrange=lambda count: 1))
+    player, blocks, positions, drops = make_world([])
+    tool = player.inventory.item_in_main_hand
+    tool.type = FakeType("minecraft:iron_axe")
+    tool.item_meta.has_enchants = True
+    tool.item_meta.enchants = {type("Enchantment", (), {"id": "minecraft:unbreaking"})(): 3}
+    for block in blocks.values():
+        block.type = "minecraft:oak_leaves"
+    guard = SimpleNamespace(can_break=lambda *args: True)
+    logger = SimpleNamespace(error=lambda msg: None, warning=lambda msg: None)
+    assert (
+        engine.mine_extra(player, "minecraft:oak_leaves", positions, guard, None, logger, axe_leaf_enchants=True) == 2
+    )
+    assert tool.item_meta.damage == 0
+    assert drops == []
+
+
 def test_shears_chain_intact_leaf_blocks_and_consume_durability(monkeypatch):
     monkeypatch.setattr(engine, "_new_item", lambda item, count: (item, count))
     player, blocks, positions, drops = make_world([])

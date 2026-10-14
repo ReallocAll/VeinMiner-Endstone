@@ -48,16 +48,23 @@ def test_gui_toggle_reopens_and_persists_without_chat(tmp_path, monkeypatch):
     )
 
     gui.show_menu(plugin, player)
-    assert len(player.forms[-1].buttons) == 6
+    assert len(player.forms[-1].buttons) == 7
     assert player.forms[-1].content == (
         "先开启总开关及所需连锁类型；默认潜行触发，可关闭。\n"
-        "树叶：斧子自然掉落、不耗耐久；剪刀掉落叶块。\n"
+        "树叶：默认斧子按空手掉落且不耗耐久；开启清叶附魔后按原版附魔掉落并耗耐久。\n"
+        "剪刀始终掉落叶块并耗耐久。\n"
         "植被：含甘蔗、竹子、仙人掌、海带和农作物；挖上层保留根部。"
     )
     assert any("潜行触发" in button for button in player.forms[-1].buttons)
     assert "蹲下触发" not in str(player.forms[-1].buttons)
     assert "已关闭" in player.forms[-1].buttons[0]
     assert "树叶连锁（斧/剪刀）" in player.forms[-1].buttons[4]
+    assert "斧子清叶附魔（耗耐久）" in player.forms[-1].buttons[5]
+    assert "已关闭" in player.forms[-1].buttons[5]
+    player.forms[-1].on_submit(player, 5)
+    assert store.get("uuid-a")["axe_leaf_enchants"]
+    tasks.pop()()
+    assert "已开启" in player.forms[-1].buttons[5]
     player.forms[-1].on_submit(player, 0)
     assert store.enabled("uuid-a")
     tasks.pop()()
@@ -108,8 +115,8 @@ def test_admin_limit_form_is_separate_and_rechecks_permission(tmp_path, monkeypa
     plugin.server = SimpleNamespace(scheduler=SimpleNamespace(run_task=lambda *args, **kwargs: tasks.append(args[1])))
 
     gui.show_menu(plugin, player)
-    assert len(player.forms[-1].buttons) == 7
-    player.forms[-1].on_submit(player, 6)
+    assert len(player.forms[-1].buttons) == 8
+    player.forms[-1].on_submit(player, 7)
     modal = player.forms[-1]
     assert isinstance(modal, FakeModal)
     assert modal.controls[0].options == ["默认", "24", "64", "128", "256"]

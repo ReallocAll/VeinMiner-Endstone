@@ -14,6 +14,7 @@ def test_first_join_defaults_are_safe(tmp_path):
         "ores": True,
         "logs": False,
         "leaves": False,
+        "axe_leaf_enchants": False,
         "plants": False,
     }
     assert not store.enabled("uuid-a")
@@ -29,6 +30,7 @@ def test_independent_flags_survive_restart(tmp_path):
     store.set("uuid-a", "logs", True)
     store.set("uuid-a", "enabled", False)
     store.set("uuid-b", "leaves", True)
+    store.set("uuid-b", "axe_leaf_enchants", True)
 
     restored = SettingsStore(path)
     restored.load()
@@ -38,9 +40,11 @@ def test_independent_flags_survive_restart(tmp_path):
         "ores": True,
         "logs": True,
         "leaves": False,
+        "axe_leaf_enchants": False,
         "plants": False,
     }
     assert restored.get("uuid-b")["leaves"]
+    assert restored.get("uuid-b")["axe_leaf_enchants"]
     assert not restored.get("uuid-b")["enabled"]
     assert restored.get("uuid-c") == DEFAULT_SETTINGS
 
@@ -87,3 +91,15 @@ def test_unchanged_setting_does_not_touch_disk(tmp_path):
     before = path.stat().st_mtime_ns
     store.set("uuid-a", "enabled", True)
     assert path.stat().st_mtime_ns == before
+
+
+def test_legacy_settings_file_defaults_axe_leaf_enchants_to_off(tmp_path):
+    path = tmp_path / "players.json"
+    path.write_text('{"uuid-a": {"enabled": true, "leaves": true}}', encoding="utf-8")
+    store = SettingsStore(path)
+    store.load()
+    assert store.get("uuid-a")["axe_leaf_enchants"] is False
+    store.set("uuid-a", "axe_leaf_enchants", True)
+    restored = SettingsStore(path)
+    restored.load()
+    assert restored.get("uuid-a")["axe_leaf_enchants"] is True

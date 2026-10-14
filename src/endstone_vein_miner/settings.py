@@ -9,6 +9,7 @@ DEFAULT_SETTINGS = {
     "ores": True,
     "logs": False,
     "leaves": False,
+    "axe_leaf_enchants": False,
     "plants": False,
 }
 SETTING_KEYS = tuple(DEFAULT_SETTINGS)
