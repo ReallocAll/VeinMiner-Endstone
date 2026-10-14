@@ -161,6 +161,7 @@ def mine_extra(
             if (
                 meta is not None
                 and durability > 0
+                and (actual_id not in LEAVES or tool_id == "minecraft:shears")
                 and not meta.is_unbreakable
                 and rng.randrange(enchantments.get("minecraft:unbreaking", 0) + 1) == 0
             ):
