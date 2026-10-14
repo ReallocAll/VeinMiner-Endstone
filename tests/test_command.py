@@ -99,14 +99,23 @@ def test_command_permissions_and_player_entry(tmp_path, monkeypatch):
     plugin._guard = SimpleNamespace(refresh=lambda: True)
     plugin._active_players = {"uuid-a"}
     harvested = []
-    monkeypatch.setattr(loaded, "mine_extra", lambda *args, **kwargs: harvested.append(args) or 1)
+    monkeypatch.setattr(loaded, "mine_extra", lambda *args, **kwargs: harvested.append(kwargs) or 1)
     plugin.logger = SimpleNamespace(error=lambda msg: (_ for _ in ()).throw(AssertionError(msg)))
     plugin._finish_break(
         player, "uuid-a", "minecraft:iron_ore", "overworld", (2, 64, 2), [("minecraft:iron_ore", [(2, 64, 3)], False)]
     )
     assert len(harvested) == 1
+    assert harvested[-1]["axe_leaf_enchants"] is False
     assert player.tips[-1] == "§a连锁挖掘 +1"
     assert "uuid-a" not in plugin._active_players
+
+    plugin.settings.set("uuid-a", "axe_leaf_enchants", True)
+    plugin._active_players.add("uuid-a")
+    plugin._finish_break(
+        player, "uuid-a", "minecraft:iron_ore", "overworld", (2, 64, 2),
+        [("minecraft:iron_ore", [(2, 64, 3)], False)],
+    )
+    assert harvested[-1]["axe_leaf_enchants"] is True
 
 
 def test_server_level_experimental_gate_removed():
