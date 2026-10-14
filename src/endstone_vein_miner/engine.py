@@ -15,10 +15,7 @@ def _new_item(item_id: str, count: int):
 
 def _failure_context(player, dimension, pos, block_id, tool_id, canopy, origin) -> str:
     source = f" 起点={origin}" if origin is not None else ""
-    return (
-        f"玩家={player.name} 维度={dimension.name} 坐标={pos} "
-        f"方块={block_id} 工具={tool_id} 树冠={canopy}{source}"
-    )
+    return f"玩家={player.name} 维度={dimension.name} 坐标={pos} 方块={block_id} 工具={tool_id} 树冠={canopy}{source}"
 
 
 # Only enchantments that affect this plugin's settlement need interpretation.
