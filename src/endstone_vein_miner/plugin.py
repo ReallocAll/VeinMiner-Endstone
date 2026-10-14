@@ -69,7 +69,10 @@ class VeinMinerPlugin(Plugin):
             limit = self.limits.for_category(block_category(block_id))
             positions = find_connected(original, max_blocks=limit)
         except (ValueError, RuntimeError) as exc:
-            self.logger.warning(f"连锁挖掘读取目标失败: {exc}")
+            self.logger.warning(
+                f"连锁挖掘读取目标失败: 玩家={player.name} 维度={original.dimension.name} "
+                f"坐标=({original.x},{original.y},{original.z}) 方块={block_id} 工具={tool_id} 原因={exc}"
+            )
             return
         if not positions:
             return
@@ -153,6 +156,12 @@ class VeinMinerPlugin(Plugin):
                 block_id, positions, canopy = jobs[index]
                 batch = positions[offset : offset + 8]
                 offset += len(batch)
+                failed = False
+
+                def mark_failed() -> None:
+                    nonlocal failed
+                    failed = True
+
                 total += mine_extra(
                     player,
                     block_id,
@@ -162,7 +171,14 @@ class VeinMinerPlugin(Plugin):
                     self.logger,
                     canopy=canopy,
                     axe_leaf_enchants=values["axe_leaf_enchants"],
+                    origin=seed,
+                    on_failure=mark_failed,
                 )
+                if failed:
+                    # A failed write must not produce one error per remaining batch.
+                    # Back off subsequent activations from this player briefly.
+                    self._last_scan[player_id] = time.monotonic() + 1.88
+                    return
                 if offset >= len(positions):
                     index += 1
                     offset = 0
@@ -171,7 +187,10 @@ class VeinMinerPlugin(Plugin):
                     continued = True
                     return
             except Exception as exc:
-                self.logger.error(f"连锁挖掘失败: {exc}")
+                self.logger.error(
+                    f"连锁挖掘调度失败: 玩家={player.name} 维度={dimension_name} "
+                    f"起点={seed} 方块={seed_block_id} 阶段=调度 原因={exc}"
+                )
             finally:
                 if not continued:
                     self._active_players.discard(player_id)
