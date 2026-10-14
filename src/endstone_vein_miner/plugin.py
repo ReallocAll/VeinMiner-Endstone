@@ -153,7 +153,10 @@ class VeinMinerPlugin(Plugin):
                 block_id, positions, canopy = jobs[index]
                 batch = positions[offset : offset + 8]
                 offset += len(batch)
-                total += mine_extra(player, block_id, batch, self._guard, None, self.logger, canopy=canopy)
+                total += mine_extra(
+                    player, block_id, batch, self._guard, None, self.logger,
+                    canopy=canopy, axe_leaf_enchants=values["axe_leaf_enchants"],
+                )
                 if offset >= len(positions):
                     index += 1
                     offset = 0
@@ -199,6 +202,7 @@ class VeinMinerPlugin(Plugin):
             sender.send_message(
                 f"§e连锁: {'开' if state['enabled'] else '关'} | "
                 f"潜行: {'开' if state['require_sneak'] else '关'} | "
+                f"斧子清叶附魔: {'开' if state['axe_leaf_enchants'] else '关'} | "
                 f"矿石/树木/树叶/植被: "
                 f"{int(state['ores'])}/{int(state['logs'])}/{int(state['leaves'])}/{int(state['plants'])}"
             )
